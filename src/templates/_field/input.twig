@@ -1,0 +1,54 @@
+{% import '_includes/forms' as forms %}
+
+<input type="hidden" id="{{ id }}-json" name="{{ name }}[json]" value="{{ value.data.toJson() }}">
+
+<div class="legs-editor"
+     data-legs-editor
+     data-legs-input="{{ namespacedId }}-json"
+     data-legs-pro="{{ isPro ? '1' : '0' }}"></div>
+
+{% if field.showOptions %}
+    <div class="legs-field-options" style="margin-top: 14px">
+        {{ forms.textField({
+            label: 'Caption'|t('legs'),
+            name: name ~ '[caption]',
+            value: value.caption,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Sortable'|t('legs'),
+            name: name ~ '[options][sortable]',
+            on: value.options.sortable,
+        }) }}
+
+        {% if isPro %}
+            {{ forms.lightswitchField({
+                label: 'Searchable'|t('legs'),
+                name: name ~ '[options][searchable]',
+                on: value.options.searchable,
+            }) }}
+        {% endif %}
+
+        {{ forms.selectField({
+            label: 'When it is too wide'|t('legs'),
+            name: name ~ '[options][responsive]',
+            value: value.options.responsive,
+            options: [
+                { label: 'Scroll sideways'|t('legs'), value: 'scroll' },
+                { label: 'Stack each row'|t('legs'), value: 'stack', disabled: not isPro },
+                { label: 'Nothing'|t('legs'), value: 'none' },
+            ],
+        }) }}
+
+        {{ forms.lightswitchField({ label: 'Striped rows'|t('legs'), name: name ~ '[options][striped]', on: value.options.striped }) }}
+        {{ forms.lightswitchField({ label: 'Cell borders'|t('legs'), name: name ~ '[options][bordered]', on: value.options.bordered }) }}
+        {{ forms.lightswitchField({ label: 'Compact'|t('legs'), name: name ~ '[options][compact]', on: value.options.compact }) }}
+    </div>
+{% else %}
+    {# The options still have to be posted, or a save would reset them to the field defaults. #}
+    {% for key, option in value.options.toArray() %}
+        {% if option is not null %}
+            <input type="hidden" name="{{ name }}[options][{{ key }}]" value="{{ option is same as(true) ? '1' : (option is same as(false) ? '' : option) }}">
+        {% endif %}
+    {% endfor %}
+{% endif %}

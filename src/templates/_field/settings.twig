@@ -1,0 +1,75 @@
+{% import '_includes/forms' as forms %}
+
+{{ forms.selectField({
+    label: 'What this field holds'|t('legs'),
+    id: 'mode',
+    name: 'mode',
+    value: field.mode,
+    toggle: true,
+    targetPrefix: 'mode-',
+    options: [
+        { label: 'Its own table'|t('legs'), value: 'inline' },
+        { label: 'A table from the library'|t('legs'), value: 'reference' },
+    ],
+    instructions: 'An inline table belongs to the element it is on. A reference points at a table in Legs, so one edit updates every place it appears.'|t('legs'),
+}) }}
+
+<div id="mode-reference" class="{{ field.mode == 'reference' ? '' : 'hidden' }}">
+    {{ forms.textField({
+        label: 'How many tables'|t('legs'),
+        instructions: 'One gives templates the table itself, so `entry.spec.render()` works. Anything else gives a collection to loop over. 0 means no limit.'|t('legs'),
+        id: 'maxTables',
+        name: 'maxTables',
+        type: 'number',
+        size: 3,
+        min: 0,
+        value: field.maxTables,
+    }) }}
+</div>
+
+<div id="mode-inline" class="{{ field.mode == 'inline' ? '' : 'hidden' }}">
+    {{ forms.textField({
+        label: 'Rows to start with'|t('legs'),
+        id: 'defaultRows',
+        name: 'defaultRows',
+        type: 'number',
+        size: 3,
+        value: field.defaultRows,
+    }) }}
+
+    {{ forms.textField({
+        label: 'Columns to start with'|t('legs'),
+        id: 'defaultCols',
+        name: 'defaultCols',
+        type: 'number',
+        size: 3,
+        value: field.defaultCols,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Let authors change presentation options'|t('legs'),
+        instructions: 'Off, every table in this field uses the same options and authors only edit the grid.'|t('legs'),
+        id: 'showOptions',
+        name: 'showOptions',
+        on: field.showOptions,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Sortable by default'|t('legs'),
+        id: 'defaultOptions-sortable',
+        name: 'defaultOptions[sortable]',
+        on: options.sortable,
+    }) }}
+
+    {{ forms.selectField({
+        label: 'When it is too wide'|t('legs'),
+        id: 'defaultOptions-responsive',
+        name: 'defaultOptions[responsive]',
+        value: options.responsive,
+        options: [
+            { label: 'Scroll sideways'|t('legs'), value: 'scroll' },
+            { label: 'Stack each row'|t('legs'), value: 'stack' },
+            { label: 'Nothing'|t('legs'), value: 'none' },
+        ],
+    }) }}
+</div>

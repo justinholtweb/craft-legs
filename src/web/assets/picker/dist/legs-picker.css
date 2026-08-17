@@ -1,0 +1,116 @@
+/* Garnish sizes a modal to its contents, and a list of unknown length needs telling where to
+   stop — otherwise one long library makes a modal taller than the window. */
+.legs-picker {
+    width: 460px;
+    max-width: calc(100vw - 40px);
+    height: auto;
+}
+
+.legs-picker .body {
+    padding: 24px;
+    max-height: min(60vh, 460px);
+    overflow: auto;
+}
+
+.legs-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-height: 60px;
+    margin-top: 12px;
+}
+
+.legs-picker-row {
+    display: flex;
+    gap: 4px;
+    align-items: stretch;
+}
+
+.legs-picker-row .legs-picker-item {
+    flex: 1 1 auto;
+}
+
+.legs-picker-gear {
+    flex: 0 0 auto;
+    width: 38px;
+    border: 1px solid var(--hairline-color, #e3e5e8);
+    border-radius: var(--large-border-radius, 6px);
+    background: var(--white, #fff);
+    color: var(--medium-text-color, #606d7b);
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.legs-picker-gear:hover {
+    border-color: var(--link-color, #0b69a3);
+}
+
+.legs-picker-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.legs-picker-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.legs-picker-option select,
+.legs-picker-option input {
+    width: 110px;
+}
+
+.legs-picker-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.legs-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 10px;
+    border: 1px solid var(--hairline-color, #e3e5e8);
+    border-radius: var(--large-border-radius, 6px);
+    background: var(--white, #fff);
+    text-align: left;
+    cursor: pointer;
+}
+
+.legs-picker-item:hover {
+    border-color: var(--link-color, #0b69a3);
+    background: var(--gray-050, #f9fafb);
+}
+
+.legs-picker-title {
+    font-weight: 600;
+}
+
+.legs-picker-meta {
+    font-size: 12px;
+    color: var(--medium-text-color, #606d7b);
+}
+
+/* The embed as it appears inside an editor, in both CKEditor and Redactor. */
+.legs-embed-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px dashed var(--hairline-color, #c8ccd2);
+    border-radius: var(--large-border-radius, 6px);
+    background: var(--gray-050, #f9fafb);
+    color: var(--text-color, #3f4d5a);
+    font-size: 13px;
+}
+
+.legs-embed-card::before {
+    content: "▦";
+    opacity: 0.6;
+}

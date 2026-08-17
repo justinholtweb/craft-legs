@@ -1,0 +1,89 @@
+{# @var data \justinholtweb\legs\models\TableData #}
+{# @var options \justinholtweb\legs\models\RenderOptions #}
+{#
+  Legs' default table template.
+
+  Copy this to `templates/_legs/table.twig` in your site to take it over. Everything that needs a
+  decision — which rows are headers, which cells a merge swallows, what a column sorts as, what a
+  stacked cell is labelled — has already been made by the renderer and handed to you in `head`,
+  `body`, `foot` and `columns`, so an override only ever changes presentation.
+
+  Available: id, table, caption, handle, data, options, head, body, foot, columns, texts.
+#}
+{% set config = {
+    sortable: options.sortable,
+    searchable: options.searchable,
+    paginate: options.paginate,
+    perPage: options.perPage,
+    defaultSortColumn: options.defaultSortColumn,
+    defaultSortDir: options.defaultSortDir,
+    texts: texts,
+} %}
+{% set tableClasses = [
+    'legs-table',
+    options.striped ? 'legs-striped',
+    options.hover ? 'legs-hover',
+    options.bordered ? 'legs-bordered',
+    options.compact ? 'legs-compact',
+    options.stickyHeader ? 'legs-sticky',
+]|filter(v => v) %}
+
+<div class="{{ ['legs', options.class]|filter(v => v)|join(' ') }}"
+     data-legs="{{ config|json_encode }}"
+     data-legs-responsive="{{ options.responsive }}">
+    <div class="legs-controls" data-legs-controls hidden></div>
+    <div class="legs-scroll">
+        <table id="{{ id }}" class="{{ tableClasses|join(' ') }}">
+            {% if caption %}
+                <caption class="legs-caption legs-caption-{{ options.captionPosition }}">{{ caption }}</caption>
+            {% endif %}
+
+            {% if head|length %}
+                <thead>
+                {% for row in head %}
+                    <tr{{ row.class ? ' class="' ~ row.class ~ '"' : '' }}>
+                        {% for cell in row.cells %}
+                            {% set column = columns[cell.col] ?? null %}
+                            <th scope="col"
+                                class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}"
+                                {%- if cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
+                                {%- if cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}
+                                {%- if column and column.width %} style="width: {{ column.width }}"{% endif %}
+                                {%- if column and column.sortable %} data-legs-sort-col="{{ cell.col }}" data-legs-sort-as="{{ column.sortAs }}" aria-sort="none"{% endif %}>{{ cell.html|raw }}</th>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </thead>
+            {% endif %}
+
+            <tbody>
+            {% for row in body %}
+                <tr{{ row.class ? ' class="' ~ row.class ~ '"' : '' }}>
+                    {% for cell in row.cells %}
+                        <td class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}"
+                            {%- if cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
+                            {%- if cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}
+                            {%- if cell.sortValue is not null %} data-legs-sort="{{ cell.sortValue }}"{% endif %}
+                            {%- if cell.label %} data-legs-label="{{ cell.label }}"{% endif %}>{{ cell.html|raw }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+            </tbody>
+
+            {% if foot|length %}
+                <tfoot>
+                {% for row in foot %}
+                    <tr{{ row.class ? ' class="' ~ row.class ~ '"' : '' }}>
+                        {% for cell in row.cells %}
+                            <td class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}"
+                                {%- if cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
+                                {%- if cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|raw }}</td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tfoot>
+            {% endif %}
+        </table>
+    </div>
+    <div class="legs-status" role="status" aria-live="polite" data-legs-status></div>
+</div>

@@ -1,0 +1,380 @@
+{% extends '_layouts/cp' %}
+{% import '_includes/forms' as forms %}
+
+{% set title = isNew ? 'New table'|t('legs') : table.title %}
+{% set selectedSubnavItem = 'tables' %}
+{% set fullPageForm = true %}
+{% set mainFormAttributes = { enctype: 'multipart/form-data' } %}
+{% set crumbs = [
+    { label: 'Legs'|t('legs'), url: url('legs') },
+    { label: 'Tables'|t('legs'), url: url('legs/tables') },
+] %}
+
+{% if showSites %}
+    {# The site the grid below belongs to. Craft's own crumb menu, so it looks and behaves like
+       the site switcher on every other element editor. #}
+    {% set crumbs = crumbs|merge([{
+        label: currentSite.name,
+        menu: {
+            label: 'Select site'|t('app'),
+            items: siteMenuItems,
+        },
+    }]) %}
+{% endif %}
+
+{% set sourceConfig = table.sourceConfig ?? {} %}
+{% set columnLabels = [] %}
+{% for i in 0..(table.data.colCount - 1) %}
+    {% set columnLabels = columnLabels|merge([{
+        label: table.data.columnLabel(i) ?: 'Column {n}'|t('legs', { n: i + 1 }),
+        value: i,
+    }]) %}
+{% endfor %}
+
+{% block content %}
+    <input type="hidden" name="action" value="legs/tables/save">
+    {{ redirectInput('legs/tables/{id}') }}
+    {% if table.id %}<input type="hidden" name="tableId" value="{{ table.id }}">{% endif %}
+    <input type="hidden" name="siteId" value="{{ currentSite.id }}">
+
+    {{ forms.textField({
+        label: 'Name'|t('legs'),
+        id: 'title',
+        name: 'title',
+        value: table.title,
+        required: true,
+        errors: table.getErrors('title'),
+        autofocus: isNew,
+    }) }}
+
+    {{ forms.textField({
+        label: 'Handle'|t('legs'),
+        instructions: 'Used by the embed code and by `craft.legs.render()`. Leave blank to generate one from the name.'|t('legs'),
+        id: 'handle',
+        name: 'handle',
+        class: 'code',
+        value: table.handle,
+        errors: table.getErrors('handle'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Caption'|t('legs'),
+        instructions: 'Rendered as the table’s `<caption>`. Screen readers announce it before the data.'|t('legs'),
+        id: 'caption',
+        name: 'caption',
+        value: table.caption,
+    }) }}
+
+    <input type="hidden" id="legs-data" name="data" value="{{ table.data.toJson() }}">
+
+    <div class="field">
+        <div class="heading"><label>{{ 'Grid'|t('legs') }}</label></div>
+        <div class="input">
+            <div class="legs-editor"
+                 data-legs-editor
+                 data-legs-input="legs-data"
+                 data-legs-pro="{{ isPro ? '1' : '0' }}"></div>
+        </div>
+    </div>
+
+    {{ forms.textareaField({
+        label: 'Notes'|t('legs'),
+        instructions: 'For whoever edits this next. Never rendered.'|t('legs'),
+        id: 'description',
+        name: 'description',
+        value: table.description,
+        rows: 2,
+    }) }}
+
+    {% if isPro %}
+        <hr>
+        <h2>{{ 'Built from an element query'|t('legs') }}</h2>
+
+        {{ forms.selectField({
+            label: 'Source'|t('legs'),
+            id: 'source',
+            name: 'source',
+            value: table.source,
+            toggle: true,
+            targetPrefix: 'source-',
+            options: [
+                { label: 'Hand-edited'|t('legs'), value: 'manual' },
+                { label: 'Imported'|t('legs'), value: 'import' },
+                { label: 'An element query'|t('legs'), value: 'query' },
+            ],
+        }) }}
+
+        <div id="source-query" class="{{ table.source == 'query' ? '' : 'hidden' }}">
+            <p class="light">{{ 'The grid is rebuilt from the query — anything typed into it by hand is replaced.'|t('legs') }}</p>
+
+            {{ forms.selectField({
+                label: 'Element type'|t('legs'),
+                id: 'sourceConfig-elementType',
+                name: 'sourceConfig[elementType]',
+                value: sourceConfig.elementType ?? 'craft\\elements\\Entry',
+                options: elementTypes,
+            }) }}
+
+            {{ forms.textareaField({
+                label: 'Criteria'|t('legs'),
+                instructions: 'Element query parameters as JSON, e.g. `{"section": "products", "orderBy": "title asc", "limit": 200}`.'|t('legs'),
+                id: 'sourceConfig-criteria',
+                name: 'sourceConfig[criteria]',
+                class: 'code',
+                rows: 4,
+                value: (sourceConfig.criteria ?? {})|json_encode(constant('JSON_PRETTY_PRINT')),
+            }) }}
+
+            {{ forms.editableTableField({
+                label: 'Columns'|t('legs'),
+                instructions: 'One row per column of the table.'|t('legs'),
+                id: 'sourceConfig-columns',
+                name: 'sourceConfig[columns]',
+                cols: {
+                    label: { heading: 'Heading'|t('legs'), type: 'singleline' },
+                    type: {
+                        heading: 'Reads'|t('legs'),
+                        type: 'select',
+                        options: {
+                            attribute: 'An attribute'|t('legs'),
+                            field: 'A custom field'|t('legs'),
+                            template: 'An object template'|t('legs'),
+                        },
+                    },
+                    value: { heading: 'Value'|t('legs'), type: 'singleline', code: true },
+                },
+                rows: sourceConfig.columns ?? [],
+                addRowLabel: 'Add a column'|t('legs'),
+                allowAdd: true,
+                allowDelete: true,
+                allowReorder: true,
+            }) }}
+
+            {{ forms.lightswitchField({
+                label: 'Include a header row'|t('legs'),
+                id: 'sourceConfig-includeHeader',
+                name: 'sourceConfig[includeHeader]',
+                on: sourceConfig.includeHeader ?? true,
+            }) }}
+        </div>
+    {% else %}
+        <input type="hidden" name="source" value="{{ table.source == 'query' ? 'manual' : table.source }}">
+    {% endif %}
+{% endblock %}
+
+{% block details %}
+    {% if showSites %}
+        <div class="meta">
+            {{ forms.selectField({
+                label: 'Content'|t('legs'),
+                instructions: 'Whether this table says the same thing on every site, or something different on each.'|t('legs'),
+                name: 'translationMethod',
+                value: table.translationMethod,
+                options: [
+                    { label: 'The same on all sites'|t('legs'), value: 'none' },
+                    { label: 'Translated per site'|t('legs'), value: 'site' },
+                ],
+            }) }}
+
+            {% if table.translationMethod == 'none' %}
+                <p class="light">{{ 'Saving copies this grid to every site.'|t('legs') }}</p>
+            {% else %}
+                <p class="light">{{ 'You are editing the {site} version.'|t('legs', { site: currentSite.name }) }}</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <input type="hidden" name="translationMethod" value="{{ table.translationMethod }}">
+    {% endif %}
+
+    <div class="meta">
+        <h2 class="visually-hidden">{{ 'Options'|t('legs') }}</h2>
+
+        {{ forms.lightswitchField({
+            label: 'Sortable'|t('legs'),
+            instructions: 'Visitors sort by clicking a column heading.'|t('legs'),
+            name: 'options[sortable]',
+            on: table.options.sortable,
+        }) }}
+
+        {{ forms.selectField({
+            label: 'Sort by default'|t('legs'),
+            name: 'options[defaultSortColumn]',
+            value: table.options.defaultSortColumn,
+            options: [{ label: 'Nothing — keep the entered order'|t('legs'), value: '' }]|merge(columnLabels),
+        }) }}
+
+        {{ forms.selectField({
+            label: 'Direction'|t('legs'),
+            name: 'options[defaultSortDir]',
+            value: table.options.defaultSortDir,
+            options: [
+                { label: 'Ascending'|t('legs'), value: 'asc' },
+                { label: 'Descending'|t('legs'), value: 'desc' },
+            ],
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Searchable'|t('legs'),
+            instructions: isPro ? 'Adds a box that filters rows as the visitor types.'|t('legs') : 'Pro'|t('legs'),
+            name: 'options[searchable]',
+            on: table.options.searchable,
+            disabled: not isPro,
+        }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Paginate'|t('legs'),
+            instructions: isPro ? null : 'Pro'|t('legs'),
+            name: 'options[paginate]',
+            on: table.options.paginate,
+            disabled: not isPro,
+            toggle: 'legs-perpage',
+        }) }}
+
+        <div id="legs-perpage" class="{{ table.options.paginate ? '' : 'hidden' }}">
+            {{ forms.textField({
+                label: 'Rows per page'|t('legs'),
+                name: 'options[perPage]',
+                value: table.options.perPage,
+                size: 4,
+                type: 'number',
+            }) }}
+        </div>
+
+        {{ forms.selectField({
+            label: 'When it is too wide'|t('legs'),
+            name: 'options[responsive]',
+            value: table.options.responsive,
+            options: [
+                { label: 'Scroll sideways'|t('legs'), value: 'scroll' },
+                { label: 'Stack each row'|t('legs') ~ (isPro ? '' : ' (Pro)'), value: 'stack', disabled: not isPro },
+                { label: 'Nothing'|t('legs'), value: 'none' },
+            ],
+        }) }}
+
+        {{ forms.lightswitchField({ label: 'Striped rows'|t('legs'), name: 'options[striped]', on: table.options.striped }) }}
+        {{ forms.lightswitchField({ label: 'Highlight on hover'|t('legs'), name: 'options[hover]', on: table.options.hover }) }}
+        {{ forms.lightswitchField({ label: 'Cell borders'|t('legs'), name: 'options[bordered]', on: table.options.bordered }) }}
+        {{ forms.lightswitchField({ label: 'Compact'|t('legs'), name: 'options[compact]', on: table.options.compact }) }}
+        {{ forms.lightswitchField({ label: 'Sticky header'|t('legs'), name: 'options[stickyHeader]', on: table.options.stickyHeader }) }}
+
+        {{ forms.lightswitchField({
+            label: 'Evaluate formulas'|t('legs'),
+            instructions: isPro ? 'Cells starting with `=` are calculated when the table renders.'|t('legs') : 'Pro'|t('legs'),
+            name: 'options[formulas]',
+            on: table.options.formulas,
+            disabled: not isPro,
+        }) }}
+
+        {{ forms.textField({
+            label: 'CSS class'|t('legs'),
+            name: 'options[class]',
+            value: table.options.class,
+            class: 'code',
+        }) }}
+    </div>
+
+    {% if not isNew %}
+        <div class="meta read-only">
+            <div class="data">
+                <h5 class="heading">{{ 'Embed code'|t('legs') }}</h5>
+                <div class="value"><code>{{ table.embedCode }}</code></div>
+            </div>
+            <div class="data">
+                <h5 class="heading">{{ 'Size'|t('legs') }}</h5>
+                <div class="value">{{ '{rows} × {cols}'|t('legs', { rows: table.rowCount, cols: table.colCount }) }}</div>
+            </div>
+            {% if table.lastRefreshedAt %}
+                <div class="data">
+                    <h5 class="heading">{{ 'Last refreshed'|t('legs') }}</h5>
+                    <div class="value">{{ table.lastRefreshedAt|datetime('short') }}</div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="meta">
+            <div class="field">
+                <div class="heading"><label>{{ 'Data'|t('legs') }}</label></div>
+                <div class="input">
+                    <a class="btn" href="{{ actionUrl('legs/tables/export', { tableId: table.id, format: 'csv' }) }}">{{ 'CSV'|t('legs') }}</a>
+                    <a class="btn" href="{{ actionUrl('legs/tables/export', { tableId: table.id, format: 'json' }) }}">{{ 'JSON'|t('legs') }}</a>
+                    <a class="btn" href="{{ actionUrl('legs/tables/export', { tableId: table.id, format: 'html' }) }}">{{ 'HTML'|t('legs') }}</a>
+                    {% if isPro %}
+                        <a class="btn" href="{{ actionUrl('legs/tables/export', { tableId: table.id, format: 'xlsx' }) }}">{{ 'XLSX'|t('legs') }}</a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="heading"><label for="legs-import-file">{{ 'Replace from a file'|t('legs') }}</label></div>
+                <div class="input">
+                    {# Deliberately not a second <form>: this page is already inside one, and a nested
+                       form is flattened by the parser — leaving two action inputs in the page form. #}
+                    <input type="file" id="legs-import-file" accept=".csv,.tsv,.txt,.json,.html,.htm,.xlsx,.xls,.ods">
+                    <button type="button" class="btn" id="legs-import-btn">{{ 'Import'|t('legs') }}</button>
+                </div>
+            </div>
+
+            <div class="field">
+                <div class="input">
+                    {% if table.source == 'query' and isPro %}
+                        <button type="button" class="btn" id="legs-refresh-btn">{{ 'Refresh now'|t('legs') }}</button>
+                    {% endif %}
+                    <button type="button" class="btn" id="legs-duplicate-btn">{{ 'Duplicate'|t('legs') }}</button>
+                    {% if canDelete %}
+                        <button type="button" class="btn delete" id="legs-delete-btn">{{ 'Delete'|t('legs') }}</button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% js %}
+            // Every one of these posts a *different* action to the one the page form carries, so
+            // they go out over Ajax rather than as buttons inside it.
+            (function() {
+                var tableId = {{ table.id }};
+                var siteId = {{ currentSite.id }};
+
+                function post(action, body, redirect) {
+                    Craft.sendActionRequest('POST', action, { data: body })
+                        .then(function() { window.location.href = redirect; })
+                        .catch(function(error) {
+                            Craft.cp.displayError((error.response && error.response.data && error.response.data.message) || Craft.t('legs', 'Something went wrong.'));
+                        });
+                }
+
+                var deleteBtn = document.getElementById('legs-delete-btn');
+                if (deleteBtn) {
+                    deleteBtn.addEventListener('click', function() {
+                        if (confirm(Craft.t('legs', 'Delete this table? Any embed of it will stop rendering.'))) {
+                            post('legs/tables/delete', { tableId: tableId }, Craft.getCpUrl('legs/tables'));
+                        }
+                    });
+                }
+
+                document.getElementById('legs-duplicate-btn').addEventListener('click', function() {
+                    post('legs/tables/duplicate', { tableId: tableId }, Craft.getCpUrl('legs/tables'));
+                });
+
+                var refreshBtn = document.getElementById('legs-refresh-btn');
+                if (refreshBtn) {
+                    refreshBtn.addEventListener('click', function() {
+                        post('legs/tables/refresh', { tableId: tableId, siteId: siteId }, window.location.href);
+                    });
+                }
+
+                document.getElementById('legs-import-btn').addEventListener('click', function() {
+                    var input = document.getElementById('legs-import-file');
+                    if (!input.files.length) {
+                        Craft.cp.displayError(Craft.t('legs', 'Choose a file first.'));
+                        return;
+                    }
+                    var body = new FormData();
+                    body.append('tableId', tableId);
+                    body.append('siteId', siteId);
+                    body.append('file', input.files[0]);
+                    post('legs/tables/import', body, window.location.href);
+                });
+            })();
+        {% endjs %}
+    {% endif %}
+{% endblock %}

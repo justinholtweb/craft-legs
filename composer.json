@@ -1,0 +1,61 @@
+{
+    "name": "justinholtweb/craft-legs",
+    "description": "Build a table once, use it anywhere — a table library for Craft CMS with a spreadsheet editor, CKEditor and Redactor embedding, and sortable, searchable front-end tables.",
+    "version": "5.0.0",
+    "type": "craft-plugin",
+    "keywords": [
+        "craftcms",
+        "craft-plugin",
+        "table",
+        "tables",
+        "tablepress",
+        "spreadsheet",
+        "csv"
+    ],
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Justin Holt",
+            "homepage": "https://justinholt.com"
+        }
+    ],
+    "support": {
+        "email": "justin@justinholt.com"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "require": {
+        "php": "^8.2",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "craftcms/cms": "^5.3.0"
+    },
+    "suggest": {
+        "phpoffice/phpspreadsheet": "Enables XLSX import and export (Pro)."
+    },
+    "autoload": {
+        "psr-4": {
+            "justinholtweb\\legs\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "justinholtweb\\legs\\tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "craftcms/plugin-installer": true,
+            "yiisoft/yii2-composer": true
+        }
+    },
+    "extra": {
+        "name": "Legs",
+        "handle": "legs",
+        "developer": "Justin Holt",
+        "developerUrl": "https://justinholt.com",
+        "documentationUrl": "https://github.com/justinholtweb/craft-legs/blob/main/README.md",
+        "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-legs/main/CHANGELOG.md",
+        "class": "justinholtweb\\legs\\Plugin"
+    }
+}

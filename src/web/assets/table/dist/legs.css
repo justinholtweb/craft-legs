@@ -1,0 +1,277 @@
+/*
+ * Legs — front-end table styles.
+ *
+ * Everything is driven by custom properties so a site can retheme without overriding rules:
+ * set --legs-border, --legs-stripe and friends on .legs (or on :root) and be done.
+ *
+ * Turn this file off entirely with the `registerCss` setting if you style tables yourself; the
+ * markup and the runtime work without any of it.
+ */
+
+.legs {
+    --legs-border: #e3e5e8;
+    --legs-border-strong: #c8ccd2;
+    --legs-stripe: #f7f8f9;
+    --legs-hover: #eef4fb;
+    --legs-head-bg: #f2f4f6;
+    --legs-head-color: inherit;
+    --legs-text: inherit;
+    --legs-accent: #30636f;
+    --legs-radius: 6px;
+    --legs-pad-y: 0.55rem;
+    --legs-pad-x: 0.75rem;
+    --legs-font-size: 1rem;
+
+    margin-block: 1.5rem;
+    color: var(--legs-text);
+    font-size: var(--legs-font-size);
+}
+
+@media (prefers-color-scheme: dark) {
+    .legs {
+        --legs-border: #34383e;
+        --legs-border-strong: #464b52;
+        --legs-stripe: #1e2124;
+        --legs-hover: #232a33;
+        --legs-head-bg: #22262b;
+    }
+}
+
+.legs-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.legs-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    text-align: left;
+}
+
+.legs-table th,
+.legs-table td {
+    padding: var(--legs-pad-y) var(--legs-pad-x);
+    vertical-align: top;
+}
+
+.legs-table thead th {
+    background: var(--legs-head-bg);
+    color: var(--legs-head-color);
+    font-weight: 600;
+    border-bottom: 2px solid var(--legs-border-strong);
+    white-space: nowrap;
+}
+
+.legs-table tfoot td {
+    font-weight: 600;
+    border-top: 2px solid var(--legs-border-strong);
+}
+
+.legs-compact {
+    --legs-pad-y: 0.3rem;
+    --legs-pad-x: 0.5rem;
+    --legs-font-size: 0.9375rem;
+}
+
+.legs-bordered th,
+.legs-bordered td {
+    border: 1px solid var(--legs-border);
+}
+
+.legs-striped tbody tr:nth-child(even) {
+    background: var(--legs-stripe);
+}
+
+/* Once the runtime is filtering or paging, "every other row" means every other *visible* row,
+   which no static selector can know — so the runtime marks them and takes striping over. */
+.legs-managed .legs-striped tbody tr {
+    background: transparent;
+}
+
+.legs-managed .legs-striped tbody tr[data-legs-alt] {
+    background: var(--legs-stripe);
+}
+
+.legs-hover tbody tr:hover {
+    background: var(--legs-hover);
+}
+
+.legs-sticky thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.legs-caption {
+    padding-block: 0.5rem;
+    font-size: 0.9375em;
+    opacity: 0.85;
+    text-align: left;
+}
+
+.legs-caption-bottom {
+    caption-side: bottom;
+}
+
+.legs-align-left { text-align: left; }
+.legs-align-center { text-align: center; }
+.legs-align-right { text-align: right; }
+
+/* Sorting
+   ------------------------------------------------------------------------- */
+
+.legs-table th[data-legs-sort-col] {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 1.5rem;
+}
+
+.legs-table th[data-legs-sort-col]:focus-visible {
+    outline: 2px solid var(--legs-accent);
+    outline-offset: -2px;
+}
+
+.legs-table th[data-legs-sort-col]::after {
+    content: "";
+    position: absolute;
+    right: 0.55rem;
+    top: 50%;
+    width: 0.5rem;
+    height: 0.5rem;
+    margin-top: -0.25rem;
+    opacity: 0.25;
+    background: currentColor;
+    clip-path: polygon(50% 0, 100% 40%, 0 40%, 50% 0, 50% 100%, 100% 60%, 0 60%);
+}
+
+.legs-table th[aria-sort="ascending"]::after {
+    opacity: 1;
+    clip-path: polygon(50% 15%, 100% 70%, 0 70%);
+}
+
+.legs-table th[aria-sort="descending"]::after {
+    opacity: 1;
+    clip-path: polygon(50% 85%, 100% 30%, 0 30%);
+}
+
+/* Controls the runtime builds
+   ------------------------------------------------------------------------- */
+
+.legs-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+}
+
+.legs-search {
+    flex: 1 1 14rem;
+    max-width: 22rem;
+}
+
+.legs-search input {
+    width: 100%;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--legs-border-strong);
+    border-radius: var(--legs-radius);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.legs-pagination {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
+.legs-pagination button {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--legs-border-strong);
+    border-radius: var(--legs-radius);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.legs-pagination button[disabled] {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.legs-count {
+    font-size: 0.875em;
+    opacity: 0.75;
+}
+
+.legs-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.legs-empty td {
+    text-align: center;
+    padding-block: 1.5rem;
+    opacity: 0.7;
+}
+
+/* Stacking
+   -------------------------------------------------------------------------
+   Below the breakpoint each row becomes a card and each cell is labelled with its column
+   header, which is why the renderer writes `data-legs-label` onto every body cell. */
+
+@media (max-width: 40rem) {
+    .legs[data-legs-responsive="stack"] .legs-table,
+    .legs[data-legs-responsive="stack"] .legs-table tbody,
+    .legs[data-legs-responsive="stack"] .legs-table tr,
+    .legs[data-legs-responsive="stack"] .legs-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .legs[data-legs-responsive="stack"] .legs-table thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+    }
+
+    .legs[data-legs-responsive="stack"] .legs-table tbody tr {
+        border: 1px solid var(--legs-border-strong);
+        border-radius: var(--legs-radius);
+        margin-bottom: 0.75rem;
+        padding: 0.25rem 0;
+    }
+
+    .legs[data-legs-responsive="stack"] .legs-table tbody td {
+        border: 0;
+        border-bottom: 1px solid var(--legs-border);
+        text-align: left;
+    }
+
+    .legs[data-legs-responsive="stack"] .legs-table tbody tr td:last-child {
+        border-bottom: 0;
+    }
+
+    .legs[data-legs-responsive="stack"] .legs-table td[data-legs-label]::before {
+        content: attr(data-legs-label);
+        display: block;
+        font-weight: 600;
+        font-size: 0.8125em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        opacity: 0.7;
+        margin-bottom: 0.15rem;
+    }
+}

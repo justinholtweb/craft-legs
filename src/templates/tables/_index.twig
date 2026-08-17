@@ -1,0 +1,17 @@
+{% extends '_layouts/elementindex' %}
+
+{% set title = 'Tables'|t('legs') %}
+{% set selectedSubnavItem = 'tables' %}
+{% set elementType = 'justinholtweb\\legs\\elements\\Table' %}
+
+{% block actionButton %}
+    {% if canCreate ?? false %}
+        <a href="{{ url('legs/tables/new') }}" class="btn submit add icon">{{ 'New table'|t('legs') }}</a>
+    {% elseif maxTables is not null %}
+        <div class="readable">
+            <p class="warning">
+                {{ 'Legs Lite holds up to {max} tables.'|t('legs', { max: maxTables }) }}
+            </p>
+        </div>
+    {% endif %}
+{% endblock %}

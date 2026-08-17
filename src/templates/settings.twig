@@ -1,0 +1,54 @@
+{% import '_includes/forms' as forms %}
+
+<h2>{{ 'Front-end assets'|t('legs') }}</h2>
+
+{{ forms.lightswitchField({
+    label: 'Register the stylesheet'|t('legs'),
+    instructions: 'Legs adds its own small stylesheet when a table renders. Turn this off if you style tables yourself — the markup and the runtime work without it.'|t('legs'),
+    id: 'registerCss',
+    name: 'registerCss',
+    on: settings.registerCss,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Register the runtime'|t('legs'),
+    instructions: 'The JavaScript that sorts, searches and pages a table. Only loaded on pages where a table actually needs it.'|t('legs'),
+    id: 'registerJs',
+    name: 'registerJs',
+    on: settings.registerJs,
+}) }}
+
+<hr>
+
+<h2>{{ 'Cell content'|t('legs') }}</h2>
+
+{{ forms.lightswitchField({
+    label: 'Allow HTML in cells'|t('legs'),
+    instructions: 'On, a cell may hold a link or bold text, purified on save and again on render. Off, a cell that looks like markup is shown as text.'|t('legs'),
+    id: 'allowHtmlInCells',
+    name: 'allowHtmlInCells',
+    on: settings.allowHtmlInCells,
+}) }}
+
+{{ forms.selectField({
+    label: 'HTML Purifier config'|t('legs'),
+    instructions: 'A JSON file in `config/htmlpurifier/`, the same ones Craft’s rich-text fields use.'|t('legs'),
+    id: 'purifierConfig',
+    name: 'purifierConfig',
+    value: settings.purifierConfig,
+    options: purifierConfigs,
+}) }}
+
+{% if plugin.isPro() %}
+    <hr>
+
+    <h2>{{ 'Tables built from element queries'|t('legs') }}</h2>
+
+    {{ forms.lightswitchField({
+        label: 'Refresh when elements are saved'|t('legs'),
+        instructions: 'Saving an element queues a rebuild of every query table that could contain it, collapsed so a bulk resave costs one rebuild rather than hundreds.'|t('legs'),
+        id: 'refreshOnElementSave',
+        name: 'refreshOnElementSave',
+        on: settings.refreshOnElementSave,
+    }) }}
+{% endif %}
