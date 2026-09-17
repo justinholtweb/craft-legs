@@ -35,6 +35,16 @@ class Settings extends Model
     /** Defaults handed to every new table, as a {@see RenderOptions} array. */
     public array $defaultOptions = [];
 
+    /**
+     * Where the front-end download route lives, without leading or trailing slashes.
+     *
+     * A table still has to opt in one by one; this only decides the URL they hang off, so a site
+     * whose own routes want `legs/…` can move them. Blank registers no route at all, leaving
+     * `craft.legs.csv()` and friends as the only way out — which is the right answer for a site
+     * that wants downloads to go through its own controller.
+     */
+    public ?string $exportPath = 'legs/export';
+
     /** How often a query-backed table may refresh itself, in seconds. Pro. */
     public int $refreshInterval = 3600;
 
@@ -46,7 +56,9 @@ class Settings extends Model
         return [
             [['registerCss', 'registerJs', 'allowHtmlInCells', 'refreshOnElementSave'], 'boolean'],
             [['refreshInterval'], 'integer', 'min' => 0],
-            [['purifierConfig'], 'string'],
+            [['purifierConfig', 'exportPath'], 'string'],
+            // A path, not a URL: no scheme, no leading slash, no query string.
+            [['exportPath'], 'match', 'pattern' => '/^[A-Za-z0-9][A-Za-z0-9\-_\/]*$/', 'skipOnEmpty' => true],
             [['defaultOptions'], 'safe'],
         ];
     }
@@ -58,9 +70,24 @@ class Settings extends Model
             'registerJs' => Craft::t('legs', 'Register runtime'),
             'allowHtmlInCells' => Craft::t('legs', 'Allow HTML in cells'),
             'purifierConfig' => Craft::t('legs', 'HTML Purifier config'),
+            'exportPath' => Craft::t('legs', 'Front-end download path'),
             'refreshInterval' => Craft::t('legs', 'Refresh interval'),
             'refreshOnElementSave' => Craft::t('legs', 'Refresh on element save'),
         ];
+    }
+
+    /**
+     * The export path with the slashes trimmed off, or null when there is to be no route.
+     *
+     * Not `getExportPath()`, and not `exportPath()` beside the property of that name: Twig
+     * resolves a bare method before a property, so either spelling would make
+     * `settings.exportPath` mean something different in a template than it does in PHP.
+     */
+    public function normalizedExportPath(): ?string
+    {
+        $path = trim((string)$this->exportPath, '/');
+
+        return $path !== '' ? $path : null;
     }
 
     public function getDefaultRenderOptions(): RenderOptions

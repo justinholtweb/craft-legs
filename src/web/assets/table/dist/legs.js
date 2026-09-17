@@ -9,6 +9,10 @@
  * The renderer has done the thinking that needs server-side knowledge: every sortable cell
  * already carries a `data-legs-sort` value for numbers and dates, so nothing here has to guess
  * what "1.10" or "£1,200" or "3/4/25" means.
+ *
+ * Search reads `textContent`, which includes cells hidden by CSS — that is what makes a
+ * `hidden` + `metadata` column work as a facet: a site can set the search box's value from its
+ * own `<select>` and match a token no visible column contains.
  */
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -254,7 +258,9 @@ class LegsTable {
         const row = document.createElement('tr');
         row.className = 'legs-empty';
         const cell = document.createElement('td');
-        cell.colSpan = this.table.querySelectorAll('thead tr:last-child th').length || 1;
+        // `:not(.legs-hidden)` so a metadata column does not widen the "no results" cell past
+        // the columns the visitor can actually see.
+        cell.colSpan = this.table.querySelectorAll('thead tr:last-child th:not(.legs-hidden)').length || 1;
         cell.textContent = this.texts.noResults || 'No matching rows';
         row.appendChild(cell);
         this.tbody.appendChild(row);

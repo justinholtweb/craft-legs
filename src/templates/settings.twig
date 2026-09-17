@@ -39,6 +39,20 @@
     options: purifierConfigs,
 }) }}
 
+<hr>
+
+<h2>{{ 'Front-end downloads'|t('legs') }}</h2>
+
+{{ forms.textField({
+    label: 'Download path'|t('legs'),
+    instructions: 'Where `/legs/export/prices/csv` style links live. Each table still has to be marked downloadable on its own — this only decides the URL. Leave blank to register no route at all.'|t('legs'),
+    id: 'exportPath',
+    name: 'exportPath',
+    value: settings.exportPath,
+    placeholder: 'legs/export',
+    class: 'code',
+}) }}
+
 {% if plugin.isPro() %}
     <hr>
 

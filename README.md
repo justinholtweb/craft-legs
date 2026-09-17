@@ -154,6 +154,36 @@ not be the price of an install that only ever pastes from Sheets:
 composer require phpoffice/phpspreadsheet
 ```
 
+### Letting visitors download a table
+
+Export is available on the front end too, but never by default. Tick **Downloadable** on a table
+and it gets a route:
+
+```
+/legs/export/price-list/csv     /legs/export/price-list/json
+/legs/export/price-list/html    /legs/export/price-list/xlsx   (Pro)
+```
+
+Link to it with `exportUrl()`, which returns null — so the button never renders — for a table
+that is missing, disabled, or has not opted in:
+
+```twig
+{% set csv = craft.legs.exportUrl('price-list', 'csv') %}
+{% if csv %}<a href="{{ csv }}" download>Download this table (CSV)</a>{% endif %}
+```
+
+The opt-in is the whole gate, which is why it is per table: a handle is short and guessable, and
+a table nobody has embedded yet is not one you have decided to publish. Everything the route
+refuses — wrong handle, no opt-in, a format this edition cannot serve — it refuses as a 404, so
+the difference cannot be used to enumerate your library.
+
+Move the route with the `exportPath` setting, or blank it to register no route at all. The
+serialisers are also on the variable directly, for a site that would rather send the file itself:
+
+```twig
+{{ craft.legs.csv('price-list') }}      {# and .json() and .html() #}
+```
+
 ## Tables built from an element query (Pro)
 
 A table can be defined as a query instead of typed by hand: pick an element type, give it
@@ -202,10 +232,36 @@ pages that need it — adds:
   computed on the server, so `$1,200.00`, `1.10` and `3/4/25` all sort as what they are.
 - **Search** that filters rows as the visitor types (Pro).
 - **Pagination** (Pro).
+- **Facets of your own**, by way of metadata columns — see below.
 - **Responsive stacking**, where each row becomes a labelled card below the breakpoint (Pro).
   The alternative — scroll sideways — is free and is the default.
 
 With JavaScript off, a visitor still gets every row of a complete, accessible table.
+
+### Metadata columns
+
+Search reads a row's text, including cells hidden with CSS. A column marked `hidden` **and**
+`metadata` is rendered as a visually hidden cell instead of being left out of the page, which
+gives a row somewhere to carry a machine-readable token:
+
+```json
+{ "columns": [{ "hidden": true, "metadata": true }] }
+```
+
+Put something like `cat:technology` in that column and a `<select>` on your page can drive the
+search box precisely, instead of hoping a category name does not also occur in a title:
+
+```js
+select.addEventListener('change', () => {
+    const input = document.querySelector('#my-table-search');
+    input.value = select.value;               // e.g. "cat:technology"
+    input.dispatchEvent(new Event('input'));
+});
+```
+
+`hidden` on its own still means what it always did: the column is not part of the page at all.
+The second flag exists so that a column an author hid to keep working notes out of sight cannot
+start appearing in the source.
 
 ### Styling
 
@@ -289,6 +345,7 @@ return [
     'allowHtmlInCells' => true,     // purified on save and on render
     'purifierConfig' => null,       // a file in config/htmlpurifier/, without the extension
     'defaultOptions' => [],         // render options handed to every new table
+    'exportPath' => 'legs/export',  // front-end download route; blank registers none
     'refreshOnElementSave' => true, // rebuild query tables when a matching element is saved
     'refreshInterval' => 3600,
 ];

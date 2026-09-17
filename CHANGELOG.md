@@ -1,5 +1,27 @@
 # Release Notes for Legs
 
+## Unreleased
+
+### Added
+
+- **Front-end export** ([#3](https://github.com/justinholtweb/craft-legs/issues/3)) — a table
+  marked **Downloadable** is served at `/legs/export/<handle>/<format>` in CSV, JSON, HTML or
+  XLSX (Pro), with `craft.legs.exportUrl()` for the link and `craft.legs.csv()`, `.json()` and
+  `.html()` for the strings. Off by default per table; the route moves or turns off with the new
+  `exportPath` setting.
+- **Metadata columns** ([#2](https://github.com/justinholtweb/craft-legs/issues/2)) — a column
+  marked `hidden` *and* `metadata` is rendered as a visually hidden cell instead of being left
+  out, so it can carry a token for the runtime's search to match and a site can build precise
+  facets of its own. `hidden` on its own is unchanged.
+
+### Fixed
+
+- A column of human-formatted dates left on **Auto** sorted by day of month
+  ([#1](https://github.com/justinholtweb/craft-legs/issues/1)): `May 19, 2026` was read as the
+  number 19.2026, and `5/19/2026` as 5192026, so the date test was never reached.
+- A sortable column that came after a hidden one sorted on nothing, because omitting the hidden
+  column put the DOM out of step with the column indexes the runtime sorts by.
+
 ## 5.0.0
 
 Initial release.

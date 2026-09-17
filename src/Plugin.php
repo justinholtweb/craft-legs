@@ -86,6 +86,7 @@ class Plugin extends BasePlugin
         $this->registerElementTypes();
         $this->registerFieldTypes();
         $this->registerCpRoutes();
+        $this->registerSiteRoutes();
         $this->registerPermissions();
         $this->registerTwig();
         $this->registerRichTextIntegrations();
@@ -211,6 +212,29 @@ class Plugin extends BasePlugin
                 'legs/tables' => 'legs/tables/index',
                 'legs/tables/new' => 'legs/tables/edit',
                 'legs/tables/<tableId:\d+>' => 'legs/tables/edit',
+            ];
+        });
+    }
+
+    /**
+     * The front-end download route, `legs/export/<handle>/<format>` unless the site moved it.
+     *
+     * Registered for everyone, because the gate is the table's own `downloadable` option rather
+     * than the existence of the route — a site with no downloadable tables has a route that
+     * 404s, which is what it would have anyway. A blank `exportPath` setting registers nothing.
+     */
+    private function registerSiteRoutes(): void
+    {
+        $path = $this->getSettings()->normalizedExportPath();
+
+        if ($path === null) {
+            return;
+        }
+
+        Event::on(UrlManager::class, UrlManager::EVENT_REGISTER_SITE_URL_RULES, function(RegisterUrlRulesEvent $event) use ($path) {
+            $event->rules += [
+                "$path/<handle:[\w\-]+>" => 'legs/export/download',
+                "$path/<handle:[\w\-]+>/<format:(csv|json|html|xlsx)>" => 'legs/export/download',
             ];
         });
     }

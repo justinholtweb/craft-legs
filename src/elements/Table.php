@@ -223,6 +223,18 @@ class Table extends Element
     }
 
     /**
+     * Whether the front end may hand this table to a visitor as a file.
+     *
+     * Two conditions, both the author's: the table has to be enabled, and its `downloadable`
+     * option has to be on. Nothing about the *request* can grant it — see
+     * {@see \justinholtweb\legs\controllers\ExportController}.
+     */
+    public function getIsDownloadable(): bool
+    {
+        return $this->getOptions()->downloadable && $this->enabled && $this->getEnabledForSite();
+    }
+
+    /**
      * The tag an author copies out of the CP to embed this table.
      *
      * @param array<string, mixed> $overrides Presentation options for this embed only.

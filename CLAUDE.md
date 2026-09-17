@@ -61,6 +61,9 @@ Consequence: a ref tag carries no parameters, so an embed always uses the table'
 - `importer` / `exporter` — CSV, JSON, HTML, XLSX
 - `querySource` — element-query tables, materialised + debounced rebuilds
 
+Two controllers are CP-only (`TablesController`, `EmbedsController`); `ExportController` is the
+one anonymous, site-facing surface, gated solely by a table's own `downloadable` option.
+
 ## Traps found while building this
 
 - **An ES module URL must carry a timestamp.** Craft's published-directory hash comes from the
@@ -98,6 +101,19 @@ Consequence: a ref tag carries no parameters, so an embed always uses the table'
 - A cycle marker returned from a referenced cell is read as the number 0 unless it is propagated
   — `Formulas::$cycleDetected` rides back up the chain.
 
+- **`toNumber()` has to reject dates itself; the test order cannot fix it.** Stripping the
+  decoration out of `May 19, 2026` leaves `19,2026`, which reads as 19.2026 — and `5/19/2026`
+  loses its slashes and reads as 5192026. Swapping the tests in `sniffType()` is worse, not
+  better: `toTimestamp()` accepts anything with four consecutive digits, and `strtotime('2026')`
+  is today at 20:26, so a column of years would sniff as dates.
+- **The runtime maps DOM cells to column indexes by walking colspans.** So anything the renderer
+  leaves *out* shifts every column after it, and a sortable column that followed a hidden one
+  used to sort on `null`. A column that is not rendered has no `th`, and `data-legs-sort-col`
+  then points at nothing.
+- **Twig resolves a bare method before a property of the same name.** `Settings::$exportPath` is
+  the raw setting, so the tidied-up one is `normalizedExportPath()` — `exportPath()` beside
+  `$exportPath` would make `settings.exportPath` mean one thing in a template and another in PHP.
+
 See also `[[craft-plugin-gotchas]]` in the shared memory for family-wide traps.
 
 ## Testing
@@ -106,7 +122,7 @@ No local PHP on this Mac. Everything runs inside the plugin-testing container:
 
 ```sh
 cd ~/Sites/plugin-testing
-ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 61 checks
+ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 79 checks
 ddev exec bash -c 'find /var/www/craft-legs/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ```
 

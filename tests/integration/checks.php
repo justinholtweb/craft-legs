@@ -19,10 +19,13 @@ $app = require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
 use craft\helpers\Db;
 use justinholtweb\legs\elements\Table;
 use justinholtweb\legs\fields\TableField;
+use justinholtweb\legs\controllers\ExportController;
 use justinholtweb\legs\models\CellMerge;
+use justinholtweb\legs\models\ColumnOptions;
 use justinholtweb\legs\models\RenderOptions;
 use justinholtweb\legs\models\TableData;
 use justinholtweb\legs\Plugin;
+use justinholtweb\legs\twig\LegsVariable;
 
 $passed = 0;
 $failed = 0;
@@ -447,6 +450,162 @@ check('the table’s own options are the starting point, not the whole answer', 
 
 check('a plain `render` still works beside the parameterised one', function() use ($handle) {
     return str_contains((string)Craft::$app->getElements()->parseRefs("{legs:$handle:render}"), '<table') ?: 'plain render broke';
+});
+
+section('Sort types');
+
+/** Renders a one-column grid with a header row and gives back the markup. */
+$sortMarkup = function(array $values): string {
+    $data = TableData::fromRows(array_merge([['When']], array_map(fn($v) => [$v], $values)), 1);
+
+    return (string)Plugin::getInstance()->renderer->renderData($data, new RenderOptions());
+};
+
+check('a column of written dates sniffs as dates, not numbers', function() use ($sortMarkup) {
+    // Regression: `toNumber()` used to read "May 19, 2026" as 19.2026, so auto never reached the
+    // date test and the column sorted by day of month. https://github.com/justinholtweb/craft-legs/issues/1
+    $markup = $sortMarkup(['May 19, 2026', 'Jun 3, 2026', 'Dec 1, 2025']);
+
+    return str_contains($markup, 'data-legs-sort-as="date"') ?: 'sniffed as something else';
+});
+
+check('their sort keys are chronological', function() use ($sortMarkup) {
+    preg_match_all('/data-legs-sort="(\d+)"/', $sortMarkup(['May 19, 2026', 'Jun 3, 2026', 'Dec 1, 2025']), $matches);
+    $keys = array_map('intval', $matches[1]);
+
+    // Dec 2025 before May 2026 before Jun 2026, whatever order the rows are in.
+    return count($keys) === 3 && $keys[2] < $keys[0] && $keys[0] < $keys[1] ?: json_encode($keys);
+});
+
+check('slash-separated dates are dates too', function() use ($sortMarkup) {
+    return str_contains($sortMarkup(['5/19/2026', '6/3/2026', '12/1/2025']), 'data-legs-sort-as="date"')
+        ?: 'slash dates sniffed as numbers';
+});
+
+check('a column of numbers still sniffs as numbers', function() use ($sortMarkup) {
+    return str_contains($sortMarkup(['1.10', '1.9', '10']), 'data-legs-sort-as="number"') ?: 'lost the number type';
+});
+
+check('a column of words is still text', function() use ($sortMarkup) {
+    return str_contains($sortMarkup(['alpha', 'beta', 'gamma']), 'data-legs-sort-as="text"') ?: 'words are not text';
+});
+
+section('Metadata columns');
+
+/** Renders a two-column grid whose first column carries the given column options. */
+$metaMarkup = function(array $columnOptions): string {
+    $data = TableData::fromRows([['Category', 'Title'], ['cat:tehnologija', 'A news entry']], 1);
+    $data->columns[0] = ColumnOptions::fromArray($columnOptions);
+
+    return (string)Plugin::getInstance()->renderer->renderData($data, new RenderOptions());
+};
+
+check('a hidden column is left out of the markup', function() use ($metaMarkup) {
+    $markup = $metaMarkup(['hidden' => true]);
+
+    return !str_contains($markup, 'cat:tehnologija') && str_contains($markup, 'A news entry')
+        ?: 'hidden content reached the page';
+});
+
+check('a hidden metadata column is rendered instead, and hidden', function() use ($metaMarkup) {
+    // The point of the flag: search reads textContent, so the token has to be in the DOM.
+    $markup = $metaMarkup(['hidden' => true, 'metadata' => true]);
+
+    return str_contains($markup, 'cat:tehnologija') && str_contains($markup, 'legs-hidden')
+        ?: substr($markup, 0, 400);
+});
+
+check('`metadata` on a visible column changes nothing', function() use ($metaMarkup) {
+    $markup = $metaMarkup(['metadata' => true]);
+
+    return str_contains($markup, 'cat:tehnologija') && !str_contains($markup, 'legs-hidden')
+        ?: 'a visible column was hidden';
+});
+
+check('a metadata column keeps the later columns\' sort indexes lined up', function() {
+    // Omitting a column used to shift the DOM out of step with the column indexes the runtime
+    // sorts by, so a sortable column after a hidden one sorted on nothing at all.
+    $data = TableData::fromRows([['Category', 'Title'], ['cat:tehnologija', 'A news entry']], 1);
+    $data->columns[0] = ColumnOptions::fromArray(['hidden' => true, 'metadata' => true]);
+    $markup = (string)Plugin::getInstance()->renderer->renderData($data, new RenderOptions());
+
+    return substr_count($markup, '<th scope') === 2 && str_contains($markup, 'data-legs-sort-col="1"')
+        ?: substr($markup, 0, 400);
+});
+
+check('the flag survives a round trip through the grid JSON', function() {
+    $data = TableData::fromRows([['a'], ['b']], 1);
+    $data->columns[0] = ColumnOptions::fromArray(['hidden' => true, 'metadata' => true]);
+    $again = TableData::fromJson($data->toJson());
+
+    return $again->columns[0]->metadata === true ?: $data->toJson();
+});
+
+section('Front-end export');
+
+check('a table is not downloadable until its author says so', function() use ($table) {
+    return $table->getIsDownloadable() === false ?: 'downloadable by default';
+});
+
+check('an embed cannot make one downloadable', function() {
+    // It is not a presentation option, so it is not on the list a ref tag may set.
+    return RenderOptions::parseEmbedOptions('downloadable,compact') === ['compact' => true]
+        ?: json_encode(RenderOptions::parseEmbedOptions('downloadable,compact'));
+});
+
+check('craft.legs.csv() gives the grid as CSV', function() use ($handle) {
+    $csv = (new LegsVariable())->csv($handle);
+
+    return str_contains($csv, 'Plan,Price,Seats') && str_contains($csv, 'Team')
+        ?: substr($csv, 0, 200);
+});
+
+check('craft.legs.exportUrl() stays null while the table is private', function() use ($handle) {
+    return (new LegsVariable())->exportUrl($handle) === null ?: 'handed out a link anyway';
+});
+
+check('turning the option on opens the route', function() use ($table, $handle) {
+    $options = $table->getOptions();
+    $options->downloadable = true;
+    $table->setOptions($options);
+
+    if (!Plugin::getInstance()->tables->saveTable($table)) {
+        return implode('; ', $table->getErrorSummary(true));
+    }
+
+    $url = (new LegsVariable())->exportUrl($handle, 'json');
+
+    return $url !== null && str_contains($url, "legs/export/$handle/json") ?: 'got ' . var_export($url, true);
+});
+
+check('the option is stored, not just set', function() use ($handle) {
+    $found = Plugin::getInstance()->tables->getTableByHandle($handle);
+
+    return $found?->getOptions()->downloadable === true ?: 'did not survive the save';
+});
+
+check('an unknown format is refused rather than served as CSV', function() {
+    $controller = (new ReflectionClass(ExportController::class))->newInstanceWithoutConstructor();
+    $allows = new ReflectionMethod($controller, 'allowsFormat');
+    $allows->setAccessible(true);
+
+    return $allows->invoke($controller, 'csv') === true && $allows->invoke($controller, 'pdf') === false
+        ?: 'the format gate is open';
+});
+
+check('XLSX follows the edition', function() {
+    $controller = (new ReflectionClass(ExportController::class))->newInstanceWithoutConstructor();
+    $allows = new ReflectionMethod($controller, 'allowsFormat');
+    $allows->setAccessible(true);
+
+    Craft::$app->getPlugins()->switchEdition('legs', Plugin::EDITION_LITE);
+    $lite = $allows->invoke($controller, 'xlsx');
+    Craft::$app->getPlugins()->switchEdition('legs', Plugin::EDITION_PRO);
+    $pro = $allows->invoke($controller, 'xlsx');
+
+    // CSV, JSON and HTML are Lite's as well — only the spreadsheet is bought.
+    return $lite === false && $pro === true && $allows->invoke($controller, 'csv') === true
+        ?: "lite=" . var_export($lite, true) . ' pro=' . var_export($pro, true);
 });
 
 section('Reference fields');

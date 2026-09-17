@@ -225,6 +225,16 @@
     opacity: 0.7;
 }
 
+/* Metadata columns
+   -------------------------------------------------------------------------
+   A column marked `hidden` + `metadata` is rendered so the runtime's search can match it, and
+   never shown. `!important` because stacking below turns every `td` into a block, and a cell
+   whose whole job is to stay invisible cannot lose that argument on specificity. */
+
+.legs .legs-hidden {
+    display: none !important;
+}
+
 /* Stacking
    -------------------------------------------------------------------------
    Below the breakpoint each row becomes a card and each cell is labelled with its column

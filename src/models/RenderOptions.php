@@ -51,6 +51,15 @@ class RenderOptions implements JsonSerializable
     /** Extra classes put on the wrapper, for sites that style tables themselves. */
     public ?string $class = null;
 
+    /**
+     * Whether visitors may download this table from the front end.
+     *
+     * Off by default and deliberately per table: a handle is short and guessable, and a table
+     * nobody has embedded yet is not one the author has decided to publish. This is the only
+     * gate {@see \justinholtweb\legs\controllers\ExportController} has.
+     */
+    public bool $downloadable = false;
+
     public static function fromArray(?array $config): self
     {
         $options = new self();
@@ -80,6 +89,7 @@ class RenderOptions implements JsonSerializable
         $options->formulas = (bool)($config['formulas'] ?? $options->formulas);
         $class = trim((string)($config['class'] ?? ''));
         $options->class = $class !== '' ? $class : null;
+        $options->downloadable = (bool)($config['downloadable'] ?? $options->downloadable);
 
         return $options;
     }
@@ -113,6 +123,7 @@ class RenderOptions implements JsonSerializable
             'captionPosition' => $this->captionPosition,
             'formulas' => $this->formulas,
             'class' => $this->class,
+            'downloadable' => $this->downloadable,
         ];
     }
 
@@ -141,7 +152,10 @@ class RenderOptions implements JsonSerializable
      */
     public static function parseEmbedOptions(string $list): array
     {
-        $known = array_keys((new self())->toArray());
+        // Everything an embed may say about *this* appearance. `downloadable` is not on the
+        // list: it says who may have the table, not how this copy of it looks, and the route
+        // reads the table's own options — so allowing it here would be a knob that does nothing.
+        $known = array_diff(array_keys((new self())->toArray()), ['downloadable']);
         $options = [];
 
         foreach (explode(',', $list) as $item) {

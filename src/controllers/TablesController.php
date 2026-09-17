@@ -3,7 +3,6 @@
 namespace justinholtweb\legs\controllers;
 
 use Craft;
-use craft\helpers\FileHelper;
 use craft\helpers\Cp;
 use craft\web\Controller;
 use craft\web\UploadedFile;
@@ -110,6 +109,7 @@ class TablesController extends Controller
             'currentSite' => $currentSite,
             'showSites' => Craft::$app->getIsMultiSite() && count($editableSites) > 1,
             'siteMenuItems' => Cp::siteMenuItems($editableSites, $currentSite),
+            'exportPath' => $plugin->getSettings()->normalizedExportPath(),
         ]);
     }
 
@@ -330,17 +330,13 @@ class TablesController extends Controller
      */
     private function xlsxDownload(Table $table): Response
     {
-        $path = Craft::$app->getPath()->getTempPath() . DIRECTORY_SEPARATOR . uniqid('legs', true) . '.xlsx';
+        $exporter = Plugin::getInstance()->exporter;
 
-        try {
-            Plugin::getInstance()->exporter->toXlsx($table, $path);
-
-            return $this->asDownload(file_get_contents($path), Plugin::getInstance()->exporter->filename($table, 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        } finally {
-            if (is_file($path)) {
-                FileHelper::unlink($path);
-            }
-        }
+        return $this->asDownload(
+            $exporter->xlsxContents($table),
+            $exporter->filename($table, 'xlsx'),
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
     }
 
     /**

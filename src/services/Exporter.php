@@ -4,6 +4,7 @@ namespace justinholtweb\legs\services;
 
 use Craft;
 use craft\base\Component;
+use craft\helpers\FileHelper;
 use justinholtweb\legs\elements\Table;
 use justinholtweb\legs\models\TableData;
 use justinholtweb\legs\Plugin;
@@ -91,6 +92,29 @@ class Exporter extends Component
         }
 
         (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet))->save($path);
+    }
+
+    /**
+     * The same spreadsheet as a string, for the two controllers that have to send one.
+     *
+     * PhpSpreadsheet's writer only writes to a path, so somebody has to do the temp-file dance;
+     * doing it here means neither controller has to own a `finally` block.
+     *
+     * @throws RuntimeException
+     */
+    public function xlsxContents(Table $table): string
+    {
+        $path = Craft::$app->getPath()->getTempPath() . DIRECTORY_SEPARATOR . uniqid('legs', true) . '.xlsx';
+
+        try {
+            $this->toXlsx($table, $path);
+
+            return (string)file_get_contents($path);
+        } finally {
+            if (is_file($path)) {
+                FileHelper::unlink($path);
+            }
+        }
     }
 
     public function filename(Table $table, string $extension): string

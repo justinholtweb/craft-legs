@@ -265,6 +265,15 @@
             disabled: not isPro,
         }) }}
 
+        {{ forms.lightswitchField({
+            label: 'Downloadable'|t('legs'),
+            instructions: exportPath
+                ? 'Lets visitors download this table from {path}.'|t('legs', { path: '`/' ~ exportPath ~ '/' ~ (table.handle ?: 'handle') ~ '/csv`' })
+                : 'The front-end download route is turned off in the plugin settings.'|t('legs'),
+            name: 'options[downloadable]',
+            on: table.options.downloadable,
+        }) }}
+
         {{ forms.textField({
             label: 'CSS class'|t('legs'),
             name: 'options[class]',

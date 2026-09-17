@@ -2,6 +2,7 @@
 
 namespace justinholtweb\legs\twig;
 
+use craft\helpers\UrlHelper;
 use justinholtweb\legs\elements\db\TableQuery;
 use justinholtweb\legs\elements\Table;
 use justinholtweb\legs\Plugin;
@@ -61,5 +62,61 @@ class LegsVariable
     public function embedCode(string|int|null $handle): string
     {
         return $this->table($handle)?->getEmbedCode() ?? '';
+    }
+
+    // Export
+    // -------------------------------------------------------------------------
+    //
+    // The serialisers, straight: a template that asks for a table's CSV has already decided the
+    // visitor may have it, so these are not gated on `downloadable` the way the route is. They
+    // return a string, not a download — set the headers yourself, or link to
+    // {@see self::exportUrl()} and let Legs send the file.
+
+    /** `{{ craft.legs.csv('prices') }}` — the grid as CSV, or an empty string. */
+    public function csv(string|int|null $handle, string $delimiter = ','): string
+    {
+        $table = $this->table($handle);
+
+        return $table ? Plugin::getInstance()->exporter->toCsv($table->getData(), $delimiter) : '';
+    }
+
+    /** The round-trip format: options, merges and column settings as well as the cells. */
+    public function json(string|int|null $handle): string
+    {
+        $table = $this->table($handle);
+
+        return $table ? Plugin::getInstance()->exporter->toJson($table) : '';
+    }
+
+    /** The rendered table as a standalone HTML string. */
+    public function html(string|int|null $handle): string
+    {
+        $table = $this->table($handle);
+
+        return $table ? Plugin::getInstance()->exporter->toHtml($table) : '';
+    }
+
+    /**
+     * `{{ craft.legs.exportUrl('prices', 'csv') }}` — the download link for a table.
+     *
+     * Returns null rather than a dead link when the table is missing, when its author has not
+     * ticked `downloadable`, or when the site has turned the route off, so a template can write
+     * `{% if url %}` and get a button that only appears when it would work.
+     */
+    public function exportUrl(string|int|null $handle, string $format = 'csv'): ?string
+    {
+        $table = $this->table($handle);
+
+        if (!$table || !$table->getIsDownloadable()) {
+            return null;
+        }
+
+        $path = Plugin::getInstance()->getSettings()->normalizedExportPath();
+
+        if ($path === null) {
+            return null;
+        }
+
+        return UrlHelper::siteUrl(sprintf('%s/%s/%s', $path, $table->handle, $format));
     }
 }

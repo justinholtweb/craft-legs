@@ -33,6 +33,21 @@ class ColumnOptions
     public string $sortAs = self::SORT_AUTO;
     public bool $sortable = true;
     public bool $hidden = false;
+
+    /**
+     * Whether a hidden column is still rendered, as a visually hidden cell, instead of being
+     * left out of the markup altogether.
+     *
+     * The point is machine-readable metadata: a column of tokens like `cat:technology` that the
+     * runtime's search can match on, so a site can drive the search box from a `<select>` and
+     * facet precisely rather than hoping a category name does not also occur in a title.
+     *
+     * Off by default, and only meaningful beside `hidden`, because the two answer different
+     * questions: `hidden` alone means "this column is not part of the page", and a column an
+     * author hid to keep working notes out of sight must not start appearing in the source.
+     */
+    public bool $metadata = false;
+
     public ?string $class = null;
 
     public static function fromArray(array $config): self
@@ -48,6 +63,7 @@ class ColumnOptions
             : self::SORT_AUTO;
         $column->sortable = (bool)($config['sortable'] ?? true);
         $column->hidden = (bool)($config['hidden'] ?? false);
+        $column->metadata = (bool)($config['metadata'] ?? false);
         $class = trim((string)($config['class'] ?? ''));
         $column->class = $class !== '' ? $class : null;
 
@@ -72,6 +88,9 @@ class ColumnOptions
         }
         if ($this->hidden) {
             $array['hidden'] = true;
+        }
+        if ($this->metadata) {
+            $array['metadata'] = true;
         }
         if ($this->class !== null) {
             $array['class'] = $this->class;

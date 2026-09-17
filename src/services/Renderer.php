@@ -122,6 +122,8 @@ class Renderer extends Component
                 'align' => $column->align,
                 'width' => $column->width,
                 'hidden' => $column->hidden,
+                // A hidden column that still reaches the DOM, for search to match on.
+                'metadata' => $column->hidden && $column->metadata,
                 'class' => $column->class,
                 'sortable' => $options->sortable && $column->sortable,
                 'sortAs' => $column->sortAs === ColumnOptions::SORT_AUTO
@@ -153,7 +155,9 @@ class Renderer extends Component
             $cells = [];
 
             for ($c = 0, $colCount = $data->getColCount(); $c < $colCount; $c++) {
-                if (($columns[$c]['hidden'] ?? false) || $data->isCovered($r, $c)) {
+                $metadata = $columns[$c]['metadata'] ?? false;
+
+                if ((($columns[$c]['hidden'] ?? false) && !$metadata) || $data->isCovered($r, $c)) {
                     continue;
                 }
 
@@ -164,6 +168,8 @@ class Renderer extends Component
                     'html' => $this->cellHtml($raw),
                     'text' => trim(strip_tags($raw)),
                     'col' => $c,
+                    // Rendered, but never shown: the template hides it and the runtime reads it.
+                    'hidden' => $metadata,
                     'colspan' => $merge?->colspan ?? 1,
                     'rowspan' => $merge?->rowspan ?? 1,
                     'align' => $columns[$c]['align'] ?? ColumnOptions::ALIGN_LEFT,
@@ -269,10 +275,19 @@ class Renderer extends Component
     /**
      * Reads the number out of a formatted cell — currency symbols, thousands separators,
      * trailing percent signs, and parenthesised negatives all count.
+     *
+     * A written date is *not* a number, and has to be refused here rather than merely ordered
+     * after the date test: stripping the decoration out of "May 19, 2026" leaves "19,2026",
+     * which reads as a perfectly plausible 19.2026 and sorts a date column by day of month.
      */
     private function toNumber(string $value): ?float
     {
         $value = trim($value);
+
+        if ($this->looksLikeDate($value)) {
+            return null;
+        }
+
         $negative = (bool)preg_match('/^\((.*)\)$/', $value, $matches);
 
         if ($negative) {
@@ -301,6 +316,21 @@ class Renderer extends Component
         }
 
         return (float)$cleaned * ($negative ? -1 : 1);
+    }
+
+    /**
+     * Whether a value is date-shaped: a month name, or three separated numbers.
+     *
+     * Deliberately narrow — it only has to catch what `toNumber()` would otherwise mangle, so
+     * "3/4" stays a number and "1.234.567" stays whatever it was.
+     */
+    private function looksLikeDate(string $value): bool
+    {
+        $months = 'jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?'
+            . '|sep(t)?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?';
+
+        return (bool)preg_match('/\b(' . $months . ')\b/i', $value)
+            || (bool)preg_match('/\d{1,4}[\/.-]\d{1,2}[\/.-]\d{1,4}/', $value);
     }
 
     private function toTimestamp(string $value): ?int

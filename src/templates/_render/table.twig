@@ -5,8 +5,12 @@
 
   Copy this to `templates/_legs/table.twig` in your site to take it over. Everything that needs a
   decision — which rows are headers, which cells a merge swallows, what a column sorts as, what a
-  stacked cell is labelled — has already been made by the renderer and handed to you in `head`,
-  `body`, `foot` and `columns`, so an override only ever changes presentation.
+  stacked cell is labelled, which cells are metadata the visitor never sees — has already been
+  made by the renderer and handed to you in `head`, `body`, `foot` and `columns`, so an override
+  only ever changes presentation.
+
+  Keep `legs-hidden` on `cell.hidden` if you override this: those cells exist so the runtime's
+  search can match them, and showing them puts working data on the page.
 
   Available: id, table, caption, handle, data, options, head, body, foot, columns, texts.
 #}
@@ -45,7 +49,7 @@
                         {% for cell in row.cells %}
                             {% set column = columns[cell.col] ?? null %}
                             <th scope="col"
-                                class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}"
+                                class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}{{ cell.hidden ? ' legs-hidden' }}"
                                 {%- if cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
                                 {%- if cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}
                                 {%- if column and column.width %} style="width: {{ column.width }}"{% endif %}
@@ -60,7 +64,7 @@
             {% for row in body %}
                 <tr{{ row.class ? ' class="' ~ row.class ~ '"' : '' }}>
                     {% for cell in row.cells %}
-                        <td class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}"
+                        <td class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}{{ cell.hidden ? ' legs-hidden' }}"
                             {%- if cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
                             {%- if cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}
                             {%- if cell.sortValue is not null %} data-legs-sort="{{ cell.sortValue }}"{% endif %}
@@ -75,7 +79,7 @@
                 {% for row in foot %}
                     <tr{{ row.class ? ' class="' ~ row.class ~ '"' : '' }}>
                         {% for cell in row.cells %}
-                            <td class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}"
+                            <td class="legs-align-{{ cell.align }}{{ cell.class ? ' ' ~ cell.class }}{{ cell.hidden ? ' legs-hidden' }}"
                                 {%- if cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
                                 {%- if cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|raw }}</td>
                         {% endfor %}
