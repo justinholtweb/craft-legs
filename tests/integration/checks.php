@@ -482,6 +482,21 @@ check('slash-separated dates are dates too', function() use ($sortMarkup) {
         ?: 'slash dates sniffed as numbers';
 });
 
+check('a comma-grouped price sorts as the price, not as a fraction', function() use ($sortMarkup) {
+    // "$1,200" used to come back as 1.2 — the thousands comma read as a decimal point — which
+    // sorted a price list below "$950".
+    preg_match_all('/data-legs-sort="([\d.]+)"/', $sortMarkup(['$1,200', '$950', '$1,050']), $matches);
+
+    return array_map('floatval', $matches[1]) === [1200.0, 950.0, 1050.0] ?: json_encode($matches[1]);
+});
+
+check('a decimal comma is still a decimal', function() use ($sortMarkup) {
+    // Not a group of three digits, so it cannot be a thousands separator.
+    preg_match_all('/data-legs-sort="([\d.]+)"/', $sortMarkup(['1,5', '1,23', '2']), $matches);
+
+    return array_map('floatval', $matches[1]) === [1.5, 1.23, 2.0] ?: json_encode($matches[1]);
+});
+
 check('a column of numbers still sniffs as numbers', function() use ($sortMarkup) {
     return str_contains($sortMarkup(['1.10', '1.9', '10']), 'data-legs-sort-as="number"') ?: 'lost the number type';
 });

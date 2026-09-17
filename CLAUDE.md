@@ -122,7 +122,7 @@ No local PHP on this Mac. Everything runs inside the plugin-testing container:
 
 ```sh
 cd ~/Sites/plugin-testing
-ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 79 checks
+ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 81 checks
 ddev exec bash -c 'find /var/www/craft-legs/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 ```
 

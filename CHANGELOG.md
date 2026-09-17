@@ -21,6 +21,10 @@
   number 19.2026, and `5/19/2026` as 5192026, so the date test was never reached.
 - A sortable column that came after a hidden one sorted on nothing, because omitting the hidden
   column put the DOM out of step with the column indexes the runtime sorts by.
+- A thousands separator with no decimal part was read as a decimal comma, so `$1,200` came back
+  as 1.2 and a price column sorted it below `$950`. Grouping is now decided by the shape of the
+  digits: `1,234` and `12,345,678` are grouped, `1,5` and `1,23` are decimals, and `1.234` is
+  still 1.234.
 
 ## 5.0.0
 

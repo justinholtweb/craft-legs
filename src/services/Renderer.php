@@ -300,22 +300,55 @@ class Renderer extends Component
             return null;
         }
 
-        // 1.234,56 (European) vs 1,234.56 — whichever separator comes last is the decimal one.
-        $lastComma = strrpos($cleaned, ',');
-        $lastDot = strrpos($cleaned, '.');
-
-        if ($lastComma !== false && ($lastDot === false || $lastComma > $lastDot)) {
-            $cleaned = str_replace('.', '', $cleaned);
-            $cleaned = str_replace(',', '.', $cleaned);
-        } else {
-            $cleaned = str_replace(',', '', $cleaned);
-        }
+        $cleaned = $this->asDecimal($cleaned);
 
         if (!is_numeric($cleaned)) {
             return null;
         }
 
         return (float)$cleaned * ($negative ? -1 : 1);
+    }
+
+    /**
+     * Resolves `,` and `.` to one decimal point, guessing which is which.
+     *
+     * With both present it is not a guess: `1.234,56` and `1,234.56` are the same number, and
+     * whichever separator comes last is the decimal one. With only one it is, and the rule is
+     * the shape of the groups rather than a locale:
+     *
+     *     1,234        1234        one comma, exactly three digits after it — grouped
+     *     12,345,678   12345678    repeated groups of three — grouped
+     *     1,5          1.5         not a group of three, so a decimal comma
+     *     1.234        1.234       a lone dot stays a decimal point
+     *     1.234.567    1234567     a dot cannot repeat as a decimal point, so grouped
+     *
+     * The asymmetry between `1,234` and `1.234` is deliberate. Both are ambiguous, and the rule
+     * is which reading is more often right: `1,234` is far more often twelve hundred than one
+     * and a bit, while three decimal places after a dot is ordinary. A column sorts on these, so
+     * the cost of guessing wrong is an order, not a rounding error — "$1,200" read as 1.2 sorted
+     * below "$950".
+     */
+    private function asDecimal(string $cleaned): string
+    {
+        $lastComma = strrpos($cleaned, ',');
+        $lastDot = strrpos($cleaned, '.');
+
+        if ($lastComma !== false && $lastDot !== false) {
+            return $lastComma > $lastDot
+                ? str_replace(',', '.', str_replace('.', '', $cleaned))
+                : str_replace(',', '', $cleaned);
+        }
+
+        if ($lastComma !== false) {
+            return preg_match('/^[+-]?\d{1,3}(,\d{3})+$/', $cleaned)
+                ? str_replace(',', '', $cleaned)
+                : str_replace(',', '.', $cleaned);
+        }
+
+        // Only dots, and one of them can be a decimal point — so it takes two groups to be sure.
+        return preg_match('/^[+-]?\d{1,3}(\.\d{3}){2,}$/', $cleaned)
+            ? str_replace('.', '', $cleaned)
+            : $cleaned;
     }
 
     /**
