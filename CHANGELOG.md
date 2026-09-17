@@ -1,6 +1,6 @@
 # Release Notes for Legs
 
-## Unreleased
+## 5.1.0
 
 ### Added
 

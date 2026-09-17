@@ -1,7 +1,7 @@
 {
     "name": "justinholtweb/craft-legs",
     "description": "Build a table once, use it anywhere — a table library for Craft CMS with a spreadsheet editor, CKEditor and Redactor embedding, and sortable, searchable front-end tables.",
-    "version": "5.0.0",
+    "version": "5.1.0",
     "type": "craft-plugin",
     "keywords": [
         "craftcms",
