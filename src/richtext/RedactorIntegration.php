@@ -3,9 +3,9 @@
 namespace justinholtweb\legs\richtext;
 
 use Craft;
+use craft\redactor\events\ModifyRedactorConfigEvent;
 use craft\redactor\events\RegisterPluginPathsEvent;
 use craft\redactor\Field as RedactorField;
-use craft\redactor\events\ModifyRedactorConfigEvent;
 use justinholtweb\legs\web\assets\picker\PickerAsset;
 use yii\base\Event;
 

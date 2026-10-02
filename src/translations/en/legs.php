@@ -155,4 +155,8 @@ return [
     'tables' => 'tables',
     '{rows} × {cols}' => '{rows} × {cols}',
     '{title} copy' => '{title} copy',
+    'Only an admin can build a table from that element type.' => 'Only an admin can build a table from that element type.',
+    'Only an admin can add a template column.' => 'Only an admin can add a template column.',
+    '“{attribute}” can’t be listed in a table.' => '“{attribute}” can’t be listed in a table.',
+    'Only an admin can list disabled or expired content.' => 'Only an admin can list disabled or expired content.',
 ];

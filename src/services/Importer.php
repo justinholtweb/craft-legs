@@ -146,7 +146,7 @@ class Importer extends Component
 
         foreach ($xpath->query('.//tr', $table) as $tr) {
             /** @var DOMElement $tr */
-            $section = strtolower($tr->parentNode?->nodeName ?? '');
+            $section = strtolower($tr->parentNode->nodeName ?? '');
             $cells = $xpath->query('./th|./td', $tr);
             $c = 0;
 

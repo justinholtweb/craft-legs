@@ -120,7 +120,7 @@ class TablesController extends Controller
         $table = $plugin->tables->getTableByHandle($handle);
 
         if (!$table) {
-            $this->stderr("No table with the handle “$handle”.\n", Console::FG_RED);
+            $this->stderr("No table with the handle “{$handle}”.\n", Console::FG_RED);
 
             return ExitCode::DATAERR;
         }
@@ -146,7 +146,7 @@ class TablesController extends Controller
         $table = $plugin->tables->getTableByHandle($handle);
 
         if (!$table) {
-            $this->stderr("No table with the handle “$handle”.\n", Console::FG_RED);
+            $this->stderr("No table with the handle “{$handle}”.\n", Console::FG_RED);
 
             return ExitCode::DATAERR;
         }

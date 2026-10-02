@@ -166,8 +166,21 @@ class TablesController extends Controller
                 $table->source = Table::SOURCE_MANUAL;
                 $table->addError('source', Craft::t('legs', 'Tables built from an element query are a Pro feature.'));
             } else {
-                $table->setSourceConfig($this->postedSourceConfig($request->getBodyParam('sourceConfig', [])));
-                $table->setData($plugin->querySource->build($table->getSourceConfig() ?? [], $table->siteId));
+                $config = $this->postedSourceConfig($request->getBodyParam('sourceConfig', []));
+                $isAdmin = (bool)Craft::$app->getUser()->getIdentity()?->admin;
+
+                // Recorded with the config, so the queued rebuild — which runs as nobody — knows
+                // whose rules the query was saved under.
+                $config['trusted'] = $isAdmin;
+
+                if (!$isAdmin) {
+                    foreach ($plugin->querySource->policyErrors($config) as $error) {
+                        $table->addError('sourceConfig', $error);
+                    }
+                }
+
+                $table->setSourceConfig($config);
+                $table->setData($plugin->querySource->build($config, $table->siteId));
             }
         }
 
@@ -385,8 +398,15 @@ class TablesController extends Controller
     {
         $options = [];
 
+        $isAdmin = (bool)Craft::$app->getUser()->getIdentity()?->admin;
+
         foreach (Craft::$app->getElements()->getAllElementTypes() as $class) {
             if ($class === Table::class) {
+                continue;
+            }
+
+            // Users, addresses and third-party elements are an admin's to query.
+            if (!$isAdmin && !in_array($class, \justinholtweb\legs\services\QuerySource::CONTENT_ELEMENT_TYPES, true)) {
                 continue;
             }
 

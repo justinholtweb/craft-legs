@@ -1,7 +1,7 @@
 {
     "name": "justinholtweb/craft-legs",
     "description": "Build a table once, use it anywhere — a table library for Craft CMS with a spreadsheet editor, CKEditor and Redactor embedding, and sortable, searchable front-end tables.",
-    "version": "5.1.0",
+    "version": "5.1.1",
     "type": "craft-plugin",
     "keywords": [
         "craftcms",
@@ -30,6 +30,13 @@
         "ext-mbstring": "*",
         "craftcms/cms": "^5.3.0"
     },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "phpstan/phpstan": "^1.12 || ^2.2",
+        "craftcms/ckeditor": "^4.0 || ^5.0",
+        "craftcms/redactor": "^4.0"
+    },
     "suggest": {
         "phpoffice/phpspreadsheet": "Enables XLSX import and export (Pro)."
     },
@@ -57,5 +64,10 @@
         "documentationUrl": "https://github.com/justinholtweb/craft-legs/blob/main/README.md",
         "changelogUrl": "https://raw.githubusercontent.com/justinholtweb/craft-legs/main/CHANGELOG.md",
         "class": "justinholtweb\\legs\\Plugin"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --fix --ansi",
+        "phpstan": "phpstan --memory-limit=1G"
     }
 }

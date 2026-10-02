@@ -16,10 +16,9 @@ require $root . '/bootstrap.php';
 /** @var craft\console\Application $app */
 $app = require CRAFT_VENDOR_PATH . '/craftcms/cms/bootstrap/console.php';
 
-use craft\helpers\Db;
+use justinholtweb\legs\controllers\ExportController;
 use justinholtweb\legs\elements\Table;
 use justinholtweb\legs\fields\TableField;
-use justinholtweb\legs\controllers\ExportController;
 use justinholtweb\legs\models\CellMerge;
 use justinholtweb\legs\models\ColumnOptions;
 use justinholtweb\legs\models\RenderOptions;
@@ -803,6 +802,8 @@ check('an object template column renders per element', function() {
             ['label' => 'Title', 'type' => 'attribute', 'value' => 'title'],
             ['label' => 'Shouty', 'type' => 'template', 'value' => '{{ element.title|upper }}'],
         ],
+        // An admin's config: template columns run as written.
+        'trusted' => true,
     ]);
 
     // Asserted against the attribute column rather than against a literal, because some entries
@@ -864,6 +865,130 @@ check('a refresh writes the grid back onto the table', function() {
     $plugin->tables->deleteTable($table);
 
     return ($refreshed && $rows > 1 && $stamped) ?: "refreshed=" . var_export($refreshed, true) . " rows=$rows";
+});
+
+check('a config nobody trusted cannot list users, whatever it asks for', function() {
+    $data = Plugin::getInstance()->querySource->build([
+        'elementType' => craft\elements\User::class,
+        'criteria' => ['limit' => 5],
+        'columns' => [['label' => 'Email', 'type' => 'attribute', 'value' => 'email'], ['label' => 'Hash', 'type' => 'attribute', 'value' => 'password']],
+    ]);
+
+    return $data->getRowCount() <= 1 && !str_contains(json_encode($data->cells), '@') ?: 'listed users: ' . substr(json_encode($data->cells), 0, 200);
+});
+
+check('an untrusted config reads no denied attribute, even on entries', function() {
+    $data = Plugin::getInstance()->querySource->build([
+        'elementType' => craft\elements\Entry::class,
+        'criteria' => ['limit' => 3],
+        'columns' => [['label' => 'Title', 'type' => 'attribute', 'value' => 'title'], ['label' => 'Email', 'type' => 'attribute', 'value' => 'email']],
+    ]);
+
+    foreach ($data->bodyRowIndexes() as $r) {
+        if ($data->cell($r, 1) !== '') {
+            return 'a denied attribute was read';
+        }
+    }
+
+    return true;
+});
+
+check('an untrusted template column runs only inside the sandbox', function() {
+    $general = Craft::$app->getConfig()->getGeneral();
+    $was = $general->enableTwigSandbox;
+    $config = [
+        'elementType' => craft\elements\Entry::class,
+        'criteria' => ['limit' => 2],
+        'columns' => [['label' => 'Sum', 'type' => 'template', 'value' => '{{ 6 * 7 }}'], ['label' => 'Key', 'type' => 'template', 'value' => '{{ craft.app.config.general.securityKey }}']],
+    ];
+
+    try {
+        $general->enableTwigSandbox = false;
+        $off = Plugin::getInstance()->querySource->build($config);
+        $general->enableTwigSandbox = true;
+        $on = Plugin::getInstance()->querySource->build($config);
+    } finally {
+        $general->enableTwigSandbox = $was;
+    }
+
+    $offCells = array_map(fn($r) => [$off->cell($r, 0), $off->cell($r, 1)], $off->bodyRowIndexes());
+    $onCells = array_map(fn($r) => [$on->cell($r, 0), $on->cell($r, 1)], $on->bodyRowIndexes());
+
+    if ($offCells === [] || $onCells === []) {
+        return 'no entries to build from';
+    }
+
+    foreach ($offCells as [$sum, $key]) {
+        if ($sum !== '' || $key !== '') {
+            return 'ran unsandboxed: ' . json_encode($offCells[0]);
+        }
+    }
+
+    foreach ($onCells as [$sum, $key]) {
+        if ($sum !== '42' || $key !== '') {
+            return 'sandboxed run gave ' . json_encode([$sum, $key === '' ? '' : 'THE KEY']);
+        }
+    }
+
+    return true;
+});
+
+check('an untrusted config cannot ask for disabled content', function() {
+    $plugin = Plugin::getInstance();
+    $errors = $plugin->querySource->policyErrors(['elementType' => craft\elements\Entry::class, 'criteria' => ['status' => null], 'columns' => []]);
+
+    return count($errors) === 1 ?: json_encode($errors);
+});
+
+check('the policy names everything a non-admin may not save', function() {
+    $errors = Plugin::getInstance()->querySource->policyErrors([
+        'elementType' => craft\elements\User::class,
+        'columns' => [['type' => 'template', 'value' => '{{ 1 }}'], ['type' => 'attribute', 'value' => 'Password']],
+    ]);
+    $clean = Plugin::getInstance()->querySource->policyErrors([
+        'elementType' => craft\elements\Entry::class,
+        'columns' => [['type' => 'attribute', 'value' => 'title'], ['type' => 'field', 'value' => 'body']],
+    ]);
+
+    return count($errors) === 3 && $clean === [] ?: json_encode([$errors, $clean]);
+});
+
+check('over HTTP, a table manager who is not an admin cannot save a user query', function() {
+    $run = substr(bin2hex(random_bytes(3)), 0, 6);
+    $password = 'legs-' . bin2hex(random_bytes(10));
+    $user = new craft\elements\User(['username' => "legs-manager-$run", 'email' => "legs-manager-$run@example.com", 'newPassword' => $password]);
+    Craft::$app->getElements()->saveElement($user, false);
+    Craft::$app->getUsers()->activateUser($user);
+    $siteAccess = array_map(fn($site) => 'editsite:' . strtolower($site->uid), Craft::$app->getSites()->getAllSites());
+    Craft::$app->getUserPermissions()->saveUserPermissions($user->id, array_merge(['accesscp', 'accessplugin-legs', 'legs:viewtables', 'legs:managetables'], $siteAccess));
+
+    try {
+        $http = new GuzzleHttp\Client(['base_uri' => 'http://localhost/', 'cookies' => new GuzzleHttp\Cookie\CookieJar(), 'http_errors' => false, 'allow_redirects' => false]);
+        $csrf = fn() => json_decode((string)$http->get('index.php?p=actions/users/session-info', ['headers' => ['Accept' => 'application/json']])->getBody(), true)['csrfTokenValue'] ?? '';
+        $http->post('index.php?p=actions/users/login', ['headers' => ['Accept' => 'application/json'], 'form_params' => ['loginName' => $user->username, 'password' => $password, 'CRAFT_CSRF_TOKEN' => $csrf()]]);
+
+        $response = $http->post('index.php?p=admin/actions/legs/tables/save', ['headers' => ['Accept' => 'application/json'], 'form_params' => [
+            'CRAFT_CSRF_TOKEN' => $csrf(),
+            'title' => "Users $run",
+            'handle' => "legsusers$run",
+            'source' => Table::SOURCE_QUERY,
+            'sourceConfig' => [
+                'elementType' => craft\elements\User::class,
+                'columns' => [['label' => 'Email', 'type' => 'attribute', 'value' => 'email']],
+            ],
+        ]]);
+
+        $saved = Plugin::getInstance()->tables->getTableByHandle("legsusers$run");
+
+        if ($saved) {
+            Plugin::getInstance()->tables->deleteTable($saved);
+        }
+
+        return $saved === null && $response->getStatusCode() !== 200 || ($saved === null && str_contains((string)$response->getBody(), 'Only an admin'))
+            ?: 'status ' . $response->getStatusCode() . ', saved ' . var_export($saved !== null, true) . ' ' . substr((string)$response->getBody(), 0, 200);
+    } finally {
+        Craft::$app->getElements()->deleteElement($user, true);
+    }
 });
 
 section('XLSX');

@@ -133,6 +133,9 @@ class Table extends Element
         return true;
     }
 
+    /**
+     * @return TableQuery
+     */
     public static function find(): ElementQueryInterface
     {
         return new TableQuery(static::class);

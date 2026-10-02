@@ -170,8 +170,8 @@ class Renderer extends Component
                     'col' => $c,
                     // Rendered, but never shown: the template hides it and the runtime reads it.
                     'hidden' => $metadata,
-                    'colspan' => $merge?->colspan ?? 1,
-                    'rowspan' => $merge?->rowspan ?? 1,
+                    'colspan' => $merge->colspan ?? 1,
+                    'rowspan' => $merge->rowspan ?? 1,
                     'align' => $columns[$c]['align'] ?? ColumnOptions::ALIGN_LEFT,
                     'class' => $columns[$c]['class'] ?? null,
                     'label' => $isHeader ? null : ($columns[$c]['label'] ?? ''),

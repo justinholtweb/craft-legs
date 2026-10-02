@@ -1,0 +1,14 @@
+includes:
+    - vendor/craftcms/phpstan/phpstan.neon
+
+parameters:
+    level: 4
+    paths:
+        - src
+    excludePaths:
+        - src/templates
+    ignoreErrors:
+        # Rows arrive from imports and JSON, typed more narrowly in PHPDoc than they are in practice.
+        -
+            identifier: function.alreadyNarrowedType
+            path: src/models/TableData.php

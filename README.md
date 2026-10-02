@@ -197,6 +197,14 @@ Columns        Product   attribute   title
                Link      template    <a href="{{ element.url }}">Details</a>
 ```
 
+**Who can query what.** A query runs in the queue with no user and can be published as a download,
+so someone with **Manage tables** who isn't an admin can query entries, categories, assets, tags
+and Commerce products/variants — not users or other plugins' elements — can't add template columns
+or list sensitive attributes (passwords, email and IP addresses), and gets live content only. An
+admin's query runs as written. Anyone else's template columns run only inside Craft's Twig sandbox
+(`enableTwigSandbox`, Craft 5.9+). The rules apply on save and on every rebuild; an admin re-saving
+a table built before 5.1.1 marks it as theirs.
+
 The grid is **materialised**, not resolved at render: a table on a busy page must not run an
 element query per request. Saving a matching element queues a rebuild on a short debounce, so a
 resave of 400 entries costs one rebuild rather than four hundred. You can also rebuild on a

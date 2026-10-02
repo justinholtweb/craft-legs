@@ -1,5 +1,29 @@
 # Release Notes for Legs
 
+## 5.1.1 - 2026-10-02
+
+### Security
+
+- **Query tables are an admin's to point at anything but content.** The *Manage tables* permission
+  was enough to build a table from users — email addresses and password hashes included — or to add
+  a template column reading `craft.app.config.db.password`, and then offer it as a public download.
+  Someone who isn't an admin can now query entries, categories, assets, tags and Commerce products
+  and variants only, can't add template columns, can't list sensitive attributes, and gets live
+  content only. The rules are enforced when a table is saved and every time it's rebuilt.
+- **Template columns not saved by an admin render only inside Craft's Twig sandbox**
+  (`enableTwigSandbox`, Craft 5.9+), and render nothing without it. Tables saved before this release
+  aren't marked as an admin's, so an admin-built query table using users, other element types or
+  template columns fills in again once an admin re-saves it.
+
+### Fixed
+
+- `php craft legs/tables/…` printed an empty handle in its "No table with the handle" message: a
+  curly quote straight after `$handle` became part of the variable name.
+
+### Changed
+
+- PHPStan (level 4) and ECS configuration.
+
 ## 5.1.0
 
 ### Added

@@ -13,6 +13,7 @@ use craft\db\ActiveRecord;
  * @property string|null $options
  * @property string $source
  * @property string|null $sourceConfig
+ * @property string $translationMethod
  * @property int $rowCount
  * @property int $colCount
  * @property string|null $lastRefreshedAt

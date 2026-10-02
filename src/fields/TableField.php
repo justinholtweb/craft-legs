@@ -242,7 +242,10 @@ class TableField extends Field
         }
 
         if ($value instanceof ElementCollection) {
-            return $value->all();
+            /** @var list<Table> $tables */
+            $tables = $value->all();
+
+            return $tables;
         }
 
         // An element select posts an array of ids, even when it only allows one.

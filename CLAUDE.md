@@ -116,14 +116,25 @@ one anonymous, site-facing surface, gated solely by a table's own `downloadable`
 
 See also `[[craft-plugin-gotchas]]` in the shared memory for family-wide traps.
 
+## Query-table trust
+
+A query runs in the queue with no user and its table can be a public download, so
+`services\QuerySource` decides what a config may read. `sourceConfig['trusted']` is set by
+`TablesController::actionSave()` — true only when an admin saved it. Untrusted configs are limited
+to `QuerySource::CONTENT_ELEMENT_TYPES`, no template columns (sandboxed if Craft's sandbox is on,
+empty otherwise), no `DENIED_ATTRIBUTES`, no `status` criterion — checked in `policyErrors()` on save
+**and** in `build()` on every rebuild. Configs from before 5.1.1 have no flag and are untrusted.
+The harness turns `enableTwigSandbox` on; tests force it both ways.
+
 ## Testing
 
 No local PHP on this Mac. Everything runs inside the plugin-testing container:
 
 ```sh
 cd ~/Sites/plugin-testing
-ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 81 checks
+ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 87 checks
 ddev exec bash -c 'find /var/www/craft-legs/src -name "*.php" -print0 | xargs -0 -n1 php -l'
+docker exec -w /sites/craft-legs ddev-phpstan-runner-web bash -c 'vendor/bin/phpstan analyse --memory-limit=1G && vendor/bin/ecs check'   # level 4, clean
 ```
 
 The checks are idempotent and self-cleaning. Front-end demo page: `/legs-test` in the harness.

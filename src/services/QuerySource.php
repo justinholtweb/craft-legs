@@ -36,6 +36,76 @@ class QuerySource extends Component
     /** How long a save waits for its neighbours before a rebuild is queued. */
     private const DEBOUNCE_SECONDS = 30;
 
+    /**
+     * What a query table saved by someone who is not an admin may list.
+     *
+     * Content, and nothing else. A query runs in the queue with no user, so it can read anything —
+     * and the result can be published and offered as a download. Until 5.1.1 the "manage tables"
+     * permission was enough to list users' email addresses and password hashes, or to run a
+     * template column reading `craft.app.config.db.password`, and hand either to anonymous
+     * visitors. Admins can still query anything.
+     */
+    public const CONTENT_ELEMENT_TYPES = [
+        'craft\\elements\\Entry',
+        'craft\\elements\\Category',
+        'craft\\elements\\Asset',
+        'craft\\elements\\Tag',
+        'craft\\commerce\\elements\\Product',
+        'craft\\commerce\\elements\\Variant',
+    ];
+
+    /** Attributes no non-admin query reads, on any element type. */
+    private const DENIED_ATTRIBUTES = [
+        'password', 'newpassword', 'currentpassword', 'verificationcode', 'authkey', 'unverifiedemail',
+        'lastloginattemptip', 'email', 'ipaddress', 'useragent',
+    ];
+
+    /**
+     * Whether a stored config was saved by an admin. Configs saved before 5.1.1 carry no flag and
+     * are treated as untrusted until an admin re-saves them.
+     */
+    public function isTrusted(array $config): bool
+    {
+        return ($config['trusted'] ?? false) === true;
+    }
+
+    /**
+     * Why a non-admin may not save this config, as messages — empty when they may.
+     *
+     * @return string[]
+     */
+    public function policyErrors(array $config): array
+    {
+        $errors = [];
+        $elementType = (string)($config['elementType'] ?? 'craft\\elements\\Entry');
+
+        if (!in_array($elementType, self::CONTENT_ELEMENT_TYPES, true)) {
+            $errors[] = Craft::t('legs', 'Only an admin can build a table from that element type.');
+        }
+
+        foreach ($config['columns'] ?? [] as $column) {
+            $type = $column['type'] ?? self::TYPE_ATTRIBUTE;
+            $value = (string)($column['value'] ?? '');
+
+            if ($type === self::TYPE_TEMPLATE) {
+                $errors[] = Craft::t('legs', 'Only an admin can add a template column.');
+            } elseif ($type === self::TYPE_ATTRIBUTE && $this->attributeIsDenied($value)) {
+                $errors[] = Craft::t('legs', '“{attribute}” can’t be listed in a table.', ['attribute' => $value]);
+            }
+        }
+
+        if (array_key_exists('status', is_array($config['criteria'] ?? null) ? $config['criteria'] : [])) {
+            $errors[] = Craft::t('legs', 'Only an admin can list disabled or expired content.');
+        }
+
+        return array_values(array_unique($errors));
+    }
+
+    private function attributeIsDenied(string $attribute): bool
+    {
+        return in_array(strtolower(trim($attribute)), self::DENIED_ATTRIBUTES, true);
+    }
+
     public function register(): void
     {
         Event::on(Elements::class, Elements::EVENT_AFTER_SAVE_ELEMENT, function(ElementEvent $event) {
@@ -100,6 +170,18 @@ class QuerySource extends Component
             return TableData::fromArray(null);
         }
 
+        // Enforced here as well as on save, so a table saved before the rule existed — or by
+        // somebody who is no longer an admin — cannot keep publishing what it should not.
+        $trusted = $this->isTrusted($config);
+
+        if (!$trusted && !in_array($elementType, self::CONTENT_ELEMENT_TYPES, true)) {
+            return TableData::fromArray(null);
+        }
+
+        if (!$trusted && is_array($config['criteria'] ?? null)) {
+            unset($config['criteria']['status']);
+        }
+
         $columns = array_values(array_filter($config['columns'] ?? [], static fn($column) => is_array($column) && ($column['value'] ?? '') !== ''));
 
         if (!$columns) {
@@ -126,7 +208,7 @@ class QuerySource extends Component
             $row = [];
 
             foreach ($columns as $column) {
-                $row[] = $this->columnValue($element, $column);
+                $row[] = $this->columnValue($element, $column, $trusted);
             }
 
             $rows[] = $row;
@@ -160,15 +242,20 @@ class QuerySource extends Component
         return $criteria;
     }
 
-    private function columnValue(ElementInterface $element, array $column): string
+    private function columnValue(ElementInterface $element, array $column, bool $trusted = true): string
     {
         $value = $column['value'] ?? '';
+        $type = $column['type'] ?? self::TYPE_ATTRIBUTE;
+
+        if (!$trusted && $type === self::TYPE_ATTRIBUTE && $this->attributeIsDenied((string)$value)) {
+            return '';
+        }
 
         try {
-            return match ($column['type'] ?? self::TYPE_ATTRIBUTE) {
+            return match ($type) {
                 // Craft's object templates call the subject `object`; `element` is passed as
                 // well because that is what anyone writing one of these will type first.
-                self::TYPE_TEMPLATE => (string)Craft::$app->getView()->renderObjectTemplate($value, $element, ['element' => $element]),
+                self::TYPE_TEMPLATE => $this->renderTemplateColumn((string)$value, $element, $trusted),
                 self::TYPE_FIELD => $this->stringify($element->getFieldValue($value)),
                 default => $this->stringify($element->$value ?? ''),
             };
@@ -177,6 +264,27 @@ class QuerySource extends Component
 
             return '';
         }
+    }
+
+    /**
+     * An admin's template column runs as written. Anyone else's runs only inside Craft's Twig
+     * sandbox (Craft 5.9+, `enableTwigSandbox`), and renders nothing without it.
+     */
+    private function renderTemplateColumn(string $template, ElementInterface $element, bool $trusted): string
+    {
+        $view = Craft::$app->getView();
+        $variables = ['element' => $element];
+
+        if ($trusted) {
+            return (string)$view->renderObjectTemplate($template, $element, $variables);
+        }
+
+        // @phpstan-ignore function.alreadyNarrowedType (absent before Craft 5.9, which Legs supports)
+        if (method_exists($view, 'renderSandboxedObjectTemplate') && Craft::$app->getConfig()->getGeneral()->enableTwigSandbox) {
+            return (string)$view->renderSandboxedObjectTemplate($template, $element, $variables);
+        }
+
+        return '';
     }
 
     private function stringify(mixed $value): string
@@ -193,7 +301,7 @@ class QuerySource extends Component
             return (string)$value->getUiLabel();
         }
 
-        if (is_iterable($value) && !is_string($value)) {
+        if (is_iterable($value)) {
             $parts = [];
             foreach ($value as $item) {
                 $parts[] = $item instanceof ElementInterface ? $item->getUiLabel() : (is_scalar($item) ? (string)$item : '');

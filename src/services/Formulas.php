@@ -393,7 +393,7 @@ class Formulas extends Component
         return [(int)$matches[2] - 1, $col - 1];
     }
 
-    /** @param list<float> $values */
+    /** @param list<float|null> $values Nulls are blank cells, dropped before counting. */
     private function callFunction(string $name, array $values): ?float
     {
         $numbers = array_values(array_filter($values, static fn($value) => $value !== null));
