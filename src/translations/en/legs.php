@@ -159,4 +159,7 @@ return [
     'Only an admin can add a template column.' => 'Only an admin can add a template column.',
     '“{attribute}” can’t be listed in a table.' => '“{attribute}” can’t be listed in a table.',
     'Only an admin can list disabled or expired content.' => 'Only an admin can list disabled or expired content.',
+    'Legs tables' => 'Legs tables',
+    'Query for all tables, including ones created later' => 'Query for all tables, including ones created later',
+    'Query for the “{name}” table' => 'Query for the “{name}” table',
 ];

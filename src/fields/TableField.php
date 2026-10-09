@@ -8,7 +8,13 @@ use craft\base\Field;
 use craft\elements\ElementCollection;
 use craft\helpers\Cp;
 use craft\helpers\Html;
+use craft\models\GqlSchema;
+use GraphQL\Type\Definition\ResolveInfo;
+use GraphQL\Type\Definition\Type;
 use justinholtweb\legs\elements\Table;
+use justinholtweb\legs\gql\interfaces\TableInterface;
+use justinholtweb\legs\gql\Scope;
+use justinholtweb\legs\gql\types\InlineTableType;
 use justinholtweb\legs\models\InlineTable;
 use justinholtweb\legs\models\RenderOptions;
 use justinholtweb\legs\models\TableData;
@@ -191,6 +197,71 @@ class TableField extends Field
         }
 
         return '';
+    }
+
+    /**
+     * Inline tables are the element's own content, so they appear wherever the element does. A
+     * reference field only appears in a schema that can read some table — it would otherwise be a
+     * field that can only ever say null.
+     */
+    public function includeInGqlSchema(GqlSchema $schema): bool
+    {
+        if ($this->mode !== self::MODE_REFERENCE) {
+            return true;
+        }
+
+        return !empty($schema->getAllScopePairsForAction('read')[Scope::COMPONENT]);
+    }
+
+    public function getContentGqlType(): Type|array
+    {
+        if ($this->mode !== self::MODE_REFERENCE) {
+            return [
+                'name' => $this->handle,
+                'type' => InlineTableType::getType(),
+                'resolve' => self::class . '::resolveInlineGql',
+            ];
+        }
+
+        return [
+            'name' => $this->handle,
+            'type' => $this->holdsOne()
+                ? TableInterface::getType()
+                : Type::nonNull(Type::listOf(Type::nonNull(TableInterface::getType()))),
+            'resolve' => self::class . '::resolveReferenceGql',
+        ];
+    }
+
+    /**
+     * @internal
+     */
+    public static function resolveInlineGql(mixed $source, array $arguments, mixed $context, ResolveInfo $resolveInfo): ?InlineTable
+    {
+        $value = $source instanceof ElementInterface ? $source->getFieldValue($resolveInfo->fieldName) : null;
+
+        return $value instanceof InlineTable ? $value : null;
+    }
+
+    /**
+     * A reference field hands out only the tables the schema has been given, and only live ones
+     * — the same rule as the root queries, applied here because a field value is resolved by the
+     * field rather than by an element query GraphQL could narrow.
+     *
+     * @internal
+     * @return Table|list<Table>|null
+     */
+    public static function resolveReferenceGql(mixed $source, array $arguments, mixed $context, ResolveInfo $resolveInfo): mixed
+    {
+        $value = $source instanceof ElementInterface ? $source->getFieldValue($resolveInfo->fieldName) : null;
+
+        if ($value instanceof ElementCollection) {
+            return array_values(array_filter(
+                $value->all(),
+                static fn($table) => $table instanceof Table && Scope::canRead($table),
+            ));
+        }
+
+        return $value instanceof Table && Scope::canRead($value) ? $value : null;
     }
 
     /**

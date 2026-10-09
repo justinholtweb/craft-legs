@@ -6,17 +6,24 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterComponentTypesEvent;
+use craft\events\RegisterGqlQueriesEvent;
+use craft\events\RegisterGqlSchemaComponentsEvent;
+use craft\events\RegisterGqlTypesEvent;
 use craft\events\RegisterUrlRulesEvent;
 use craft\events\RegisterUserPermissionsEvent;
 use craft\helpers\FileHelper;
 use craft\services\Elements;
 use craft\services\Fields;
+use craft\services\Gql;
 use craft\services\UserPermissions;
 use craft\web\twig\variables\CraftVariable;
 use craft\web\UrlManager;
 use HTMLPurifier_Config;
 use justinholtweb\legs\elements\Table;
 use justinholtweb\legs\fields\TableField;
+use justinholtweb\legs\gql\interfaces\TableInterface;
+use justinholtweb\legs\gql\Scope;
+use justinholtweb\legs\gql\TableQueries;
 use justinholtweb\legs\models\Settings;
 use justinholtweb\legs\services\Exporter;
 use justinholtweb\legs\services\Formulas;
@@ -88,6 +95,7 @@ class Plugin extends BasePlugin
         $this->registerCpRoutes();
         $this->registerSiteRoutes();
         $this->registerPermissions();
+        $this->registerGraphQl();
         $this->registerTwig();
         $this->registerRichTextIntegrations();
         $this->querySource->register();
@@ -258,6 +266,41 @@ class Plugin extends BasePlugin
                     ],
                 ],
             ];
+        });
+    }
+
+    /**
+     * `legsTables` / `legsTable` / `legsTableCount`, the `LegsTable` type, and the schema
+     * components that grant them: the whole library, or one table at a time.
+     *
+     * Not an edition feature — a headless site needs to read its tables as much as a Twig one.
+     */
+    private function registerGraphQl(): void
+    {
+        Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_TYPES, function(RegisterGqlTypesEvent $event) {
+            $event->types[] = TableInterface::class;
+        });
+
+        Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_QUERIES, function(RegisterGqlQueriesEvent $event) {
+            $event->queries = array_merge($event->queries, TableQueries::getQueries());
+        });
+
+        Event::on(Gql::class, Gql::EVENT_REGISTER_GQL_SCHEMA_COMPONENTS, function(RegisterGqlSchemaComponentsEvent $event) {
+            $components = [
+                Scope::COMPONENT . '.' . Scope::ALL . ':read' => [
+                    'label' => Craft::t('legs', 'Query for all tables, including ones created later'),
+                ],
+            ];
+
+            $primarySiteId = Craft::$app->getSites()->getPrimarySite()->id;
+
+            foreach ($this->tables->getAllTables($primarySiteId) as $table) {
+                $components[Scope::COMPONENT . '.' . $table->uid . ':read'] = [
+                    'label' => Craft::t('legs', 'Query for the “{name}” table', ['name' => $table->getUiLabel()]),
+                ];
+            }
+
+            $event->queries[Craft::t('legs', 'Legs tables')] = $components;
         });
     }
 

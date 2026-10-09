@@ -10,7 +10,9 @@ use craft\helpers\Db;
 use craft\helpers\Html;
 use craft\helpers\UrlHelper;
 use DateTime;
+use GraphQL\Type\Definition\Type;
 use justinholtweb\legs\elements\db\TableQuery;
+use justinholtweb\legs\gql\interfaces\TableInterface;
 use justinholtweb\legs\models\RenderOptions;
 use justinholtweb\legs\models\TableData;
 use justinholtweb\legs\Plugin;
@@ -50,6 +52,9 @@ class Table extends Element
     public const TRANSLATION_SITE = 'site';
 
     public const TRANSLATION_METHODS = [self::TRANSLATION_NONE, self::TRANSLATION_SITE];
+
+    /** The one GraphQL type tables have — see {@see \justinholtweb\legs\gql\interfaces\TableInterface}. */
+    public const GQL_TYPE_NAME = 'LegsTable';
 
     public ?string $handle = null;
     public ?string $caption = null;
@@ -285,6 +290,35 @@ class Table extends Element
         }
 
         return RenderOptions::parseEmbedOptions($matches[1]);
+    }
+
+    // GraphQL
+    // -------------------------------------------------------------------------
+
+    public static function baseGqlType(): Type
+    {
+        return TableInterface::getType();
+    }
+
+    /**
+     * The schema components that grant this table: the whole library, or this table by UID.
+     *
+     * @param Table|null $context
+     */
+    public static function gqlScopesByContext(mixed $context): array
+    {
+        $scopes = ['legsTables.all'];
+
+        if ($context instanceof self && $context->uid) {
+            $scopes[] = 'legsTables.' . $context->uid;
+        }
+
+        return $scopes;
+    }
+
+    public function getGqlTypeName(): string
+    {
+        return self::GQL_TYPE_NAME;
     }
 
     // Element plumbing

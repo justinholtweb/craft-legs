@@ -1,5 +1,17 @@
 # Release Notes for Legs
 
+## Unreleased
+
+### Added
+
+- **GraphQL.** `legsTables`, `legsTable` and `legsTableCount` queries, a `LegsTable` type and the
+  Legs field in both modes, so a headless site can read its tables. `grid` hands out the
+  renderer's own layout as data — header, body and footer rows, visible columns, merges as spans,
+  purified cell HTML, evaluated formulas and sort values — alongside `options` and an optional
+  rendered `html`. Schemas get nothing until they're given tables: the whole library, or one
+  table at a time. Disabled and trashed tables are never served, and a query-backed table's
+  criteria stay on the server. Available on Lite and Pro.
+
 ## 5.1.1 - 2026-10-02
 
 ### Security

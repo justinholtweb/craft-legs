@@ -298,6 +298,52 @@ presentation and cannot accidentally change correctness.
 
 ---
 
+## GraphQL
+
+Headless sites read tables through Craft's GraphQL API. Nothing is exposed until a schema is
+given tables: in **GraphQL → Schemas**, the **Legs tables** group offers *Query for all tables,
+including ones created later*, and one checkbox per table.
+
+```graphql
+{
+  legsTable(handle: "price-list") {
+    title
+    caption
+    grid {
+      columns { index label align sortAs }
+      header { cells { html colspan rowspan } }
+      rows { cells { html text label sortValue colspan rowspan metadata } }
+      footer { cells { html } }
+    }
+    options { sortable searchable paginate perPage responsive }
+    html(options: "compact,perPage=10")
+  }
+}
+```
+
+- `legsTables`, `legsTable` and `legsTableCount` take Craft's usual element arguments (`site`,
+  `id`, `limit`, `orderBy`, `search`…) plus `handle` and `source` (`manual`, `import`, `query`).
+- `grid` is the renderer's own layout as data, so a front end that draws the table itself gets
+  what the Twig template gets: header, body and footer rows; rows and columns the author hid left
+  out (a metadata column stays, with `metadata: true` — never show those cells); merges applied as
+  `colspan`/`rowspan` (and listed in `merges`, in stored-grid coordinates); cell HTML purified or
+  escaped by the same rule as on the page; formulas already evaluated; a `sortValue` per cell.
+  Raw cell source is never exposed.
+- `options` are the presentation options in force on your edition — Lite reports search,
+  pagination, stacking and formulas as off, as the renderer would.
+- `html` is the table rendered by your table template, with optional per-call overrides in embed
+  syntax. It does not bring Legs' stylesheet or runtime with it; include those yourself if you
+  want them.
+- **The Legs field** appears on its element's type. In inline mode it is a `LegsInlineTable`
+  (`caption`, `grid`, `options`, `html`) and needs no grant of its own — it is the element's own
+  content. In reference mode it returns `LegsTable`s (one, or a list when the field holds more
+  than one), only appears in schemas that were given tables, and leaves out any table the schema
+  was not given.
+- Only live tables are returned: a disabled table, or one in the trash, is never served, whatever
+  the schema's other grants. A query-backed table's criteria never leave the server.
+
+---
+
 ## Rich-text editors
 
 Both integrations are *editing affordances only*. Rendering is Craft's own reference-tag parsing,
@@ -334,6 +380,7 @@ Both insert the same block:
 | Merged cells | — | ✓ |
 | Formulas | — | ✓ |
 | Element-query tables and scheduled refresh | — | ✓ |
+| GraphQL (queries, the field, schema permissions) | ✓ | ✓ |
 | XLSX import and export | — | ✓ |
 
 A lapsed Pro licence **downgrades** rather than breaks: stored options are left untouched, the

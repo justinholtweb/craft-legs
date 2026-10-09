@@ -61,6 +61,16 @@ Consequence: a ref tag carries no parameters, so an embed always uses the table'
 - `importer` / `exporter` — CSV, JSON, HTML, XLSX
 - `querySource` — element-query tables, materialised + debounced rebuilds
 
+### GraphQL (`src/gql/`)
+
+`legsTables`/`legsTable`/`legsTableCount`, one type `LegsTable` (tables have no groups, so no type
+per context) behind `LegsTableInterface`, and `LegsInlineTable` for inline field values. `grid`
+is `Renderer::describe()` — the same decisions the Twig template gets, as data; hidden rows/
+columns are left out and raw cell source is never exposed. `gql\Scope` is the one authority on
+what a schema may read (`legsTables.all:read` or `legsTables.<uid>:read`, plus live: element and
+site row enabled, not trashed) — the resolver, the generator and the reference field's own
+resolver all ask it, because a field value isn't narrowed by an element query.
+
 Two controllers are CP-only (`TablesController`, `EmbedsController`); `ExportController` is the
 one anonymous, site-facing surface, gated solely by a table's own `downloadable` option.
 
@@ -96,6 +106,9 @@ one anonymous, site-facing surface, gated solely by a table's own `downloadable`
 - **HTML Purifier drops `data-*` it has not been told about.** `richtext\PurifierSupport`
   registers `data-legs-handle` against `craft\htmlfield\HtmlField` — Yii matches class-level
   handlers up the inheritance chain, so one handler covers CKEditor and Redactor.
+- **Craft caches GraphQL results keyed on the schema UID**, and an in-memory `GqlSchema` has none —
+  so test cases with different scopes answer from each other's cache. `graphql.php` gives each
+  schema a UUID and turns `enableGraphqlCaching` off, and runs each schema in its own process.
 - **Config JSON rides in an HTML attribute**, so it comes back HTML-escaped; tests have to
   `html_entity_decode()` before looking for `"searchable":true`.
 - A cycle marker returned from a referenced cell is read as the number 0 unless it is propagated
@@ -133,6 +146,7 @@ No local PHP on this Mac. Everything runs inside the plugin-testing container:
 ```sh
 cd ~/Sites/plugin-testing
 ddev exec php /var/www/craft-legs/tests/integration/checks.php     # 87 checks
+docker exec -w /var/www/html ddev-plugin-testing-web php /var/www/craft-legs/tests/integration/graphql.php   # 34 checks
 ddev exec bash -c 'find /var/www/craft-legs/src -name "*.php" -print0 | xargs -0 -n1 php -l'
 docker exec -w /sites/craft-legs ddev-phpstan-runner-web bash -c 'vendor/bin/phpstan analyse --memory-limit=1G && vendor/bin/ecs check'   # level 4, clean
 ```

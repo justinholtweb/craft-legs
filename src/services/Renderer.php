@@ -46,13 +46,7 @@ class Renderer extends Component
      */
     public function renderData(TableData $data, RenderOptions $options, array $context = []): Markup
     {
-        $plugin = Plugin::getInstance();
-        $options = Edition::applyTo($options, $plugin->isPro());
-        $data = $data->normalize();
-
-        if ($options->formulas) {
-            $data = $plugin->formulas->apply($data);
-        }
+        [$data, $options] = $this->prepare($data, $options);
 
         $id = $context['id'] ?? sprintf('legs-%s', $context['handle'] ?? ++$this->counter);
 
@@ -74,6 +68,60 @@ class Renderer extends Component
         $this->registerAssets($options);
 
         return new Markup($this->renderTemplate($variables), Craft::$app->charset);
+    }
+
+    /**
+     * The same decisions {@see self::renderData()} hands its template, as plain data rather than
+     * markup — for GraphQL, where the consumer draws the table itself.
+     *
+     * Everything the template would hide is hidden here too: rows and columns an author hid are
+     * left out (a metadata column stays, flagged, exactly as it reaches the DOM), merges come as
+     * `colspan`/`rowspan` on their anchor cells, cell HTML is purified or escaped by the same
+     * rule, and formulas are evaluated when the table's options turn them on. Raw cell source is
+     * never part of it, so nothing here says more than the rendered table would.
+     *
+     * @return array{options: RenderOptions, headerRows: int, footerRows: int, rowCount: int, colCount: int, columns: list<array>, header: list<array>, rows: list<array>, footer: list<array>, merges: list<array>}
+     */
+    public function describe(TableData $data, RenderOptions $options): array
+    {
+        [$data, $options] = $this->prepare($data, $options);
+
+        $columns = array_values(array_filter(
+            $this->columnsFor($data, $options),
+            static fn(array $column) => !$column['hidden'] || $column['metadata'],
+        ));
+
+        return [
+            'options' => $options,
+            'headerRows' => $data->headerRows,
+            'footerRows' => $data->footerRows,
+            'rowCount' => $data->getRowCount(),
+            'colCount' => $data->getColCount(),
+            'columns' => $columns,
+            'header' => $this->rowsFor($data, $data->headerRowIndexes(), $options, true),
+            'rows' => $this->rowsFor($data, $data->bodyRowIndexes(), $options, false),
+            'footer' => $this->rowsFor($data, $data->footerRowIndexes(), $options, false),
+            'merges' => array_map(static fn($merge) => $merge->toArray(), $data->merges),
+        ];
+    }
+
+    /**
+     * The edition's downgrade, a square grid and evaluated formulas — what every way of
+     * presenting a table starts from.
+     *
+     * @return array{0: TableData, 1: RenderOptions}
+     */
+    private function prepare(TableData $data, RenderOptions $options): array
+    {
+        $plugin = Plugin::getInstance();
+        $options = Edition::applyTo($options, $plugin->isPro());
+        $data = $data->normalize();
+
+        if ($options->formulas) {
+            $data = $plugin->formulas->apply($data);
+        }
+
+        return [$data, $options];
     }
 
     /**
