@@ -1,7 +1,6 @@
 # Release Notes for Legs
 
-## Unreleased
-
+## 5.2.0 - 2026-10-09
 ### Added
 
 - **GraphQL.** `legsTables`, `legsTable` and `legsTableCount` queries, a `LegsTable` type and the
