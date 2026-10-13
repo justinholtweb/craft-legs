@@ -17,6 +17,9 @@
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
+/** Content that may not sit inside a `<button>`. */
+const INTERACTIVE = 'a[href], button, input, select, textarea, details, iframe, [tabindex], [contenteditable]';
+
 class LegsTable {
     constructor(wrapper) {
         this.wrapper = wrapper;
@@ -66,24 +69,47 @@ class LegsTable {
         return this.table.querySelector(`th[data-legs-sort-col="${column}"]`);
     }
 
+    /**
+     * The WAI-ARIA sortable table pattern: the `<th>` stays a column header carrying `aria-sort`,
+     * and a real `<button>` inside it does the sorting (GitHub #4).
+     *
+     * Until 5.2.1 the header itself was given `role="button"`, which replaced its `columnheader`
+     * role: screen readers stopped treating it as a header, the data cells lost their header,
+     * `aria-sort` was no longer allowed on it, and axe reported a critical violation per column.
+     * A native button brings focus, Enter and Space with it.
+     */
     bindSorting() {
         const headers = this.table.querySelectorAll('th[data-legs-sort-col]');
 
         headers.forEach((header) => {
-            header.tabIndex = 0;
-            header.setAttribute('role', 'button');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'legs-sort-button';
 
-            const activate = (event) => {
-                event.preventDefault();
+            if (header.querySelector(INTERACTIVE)) {
+                // A link in the header can't go inside a button — interactive content can't nest —
+                // so the header keeps its content and gets a small button of its own, named for it.
+                button.classList.add('legs-sort-button-icon');
+                button.setAttribute('aria-label', format(this.texts.sortBy || 'Sort by {column}', {
+                    column: header.textContent.trim(),
+                }));
+            } else {
+                button.append(...header.childNodes);
+            }
+
+            header.append(button);
+
+            button.addEventListener('click', () => {
                 const next = header.getAttribute('aria-sort') === 'ascending' ? 'desc' : 'asc';
                 this.sortBy(header, next);
                 this.apply();
-            };
+            });
 
-            header.addEventListener('click', activate);
-            header.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    activate(event);
+            // The header's own padding sits outside the button. A click there still means "sort
+            // this column", as it did when the whole cell was the control.
+            header.addEventListener('click', (event) => {
+                if (event.target === header) {
+                    button.click();
                 }
             });
         });

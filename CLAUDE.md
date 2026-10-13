@@ -76,6 +76,12 @@ one anonymous, site-facing surface, gated solely by a table's own `downloadable`
 
 ## Traps found while building this
 
+- **Never put `role="button"` on a `<th>`** (GitHub #4). It replaces `columnheader`, so the header
+  stops being a header and `aria-sort` becomes invalid on it — a critical axe violation per sortable
+  column. The sortable-table pattern is a `<th aria-sort>` holding a native `<button>`;
+  `bindSorting()` builds it. Content that can't sit inside a button (a link) gets a separate
+  `.legs-sort-button-icon` instead. axe-core ships with the global `lighthouse` install if you need
+  to audit the `/legs-test` page.
 - **An ES module URL must carry a timestamp.** Craft's published-directory hash comes from the
   path plus the *directory* mtime, and editing a file inside a directory does not change that —
   so `getAssetUrl($bundle, 'index.js', false)` keeps returning the same URL while the contents

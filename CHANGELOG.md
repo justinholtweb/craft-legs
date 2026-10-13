@@ -1,5 +1,18 @@
 # Release Notes for Legs
 
+## 5.2.1 - 2026-10-13
+### Fixed
+
+- **Sortable headers are column headers again** ([#4](https://github.com/justinholtweb/craft-legs/issues/4)).
+  The runtime gave each sortable `<th>` `role="button"`, which replaced its column header role:
+  screen readers stopped announcing it as a header or reading its sort state, and axe reported a
+  critical `aria-allowed-attr` violation (WCAG 4.1.2) for every sortable column. Each header now
+  keeps its role and its `aria-sort`, and a real `<button>` inside it does the sorting — the
+  WAI-ARIA sortable table pattern. It looks the same; keyboard and click behave as before. A
+  header that contains a link keeps it, and gets a separate “Sort by …” button over the arrow.
+  If you turn `registerCss` off and style tables yourself, style `.legs-sort-button` (and
+  `.legs-sort-button-icon`), or the browser's default button look will show in your headers.
+
 ## 5.2.0 - 2026-10-09
 ### Added
 
